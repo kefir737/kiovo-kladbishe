@@ -21,7 +21,6 @@ export function Contacts() {
                 <div>
                   <p className="text-stone-800 font-medium">Приёмная:</p>
                   <div className="flex flex-col gap-1">
-                    <a href="tel:+7495XXXXXXX" className="text-blue-600 hover:text-blue-700">+7 (495) XXX-XX-XX</a>
                     <a href="tel:+74993224842" className="text-blue-600 hover:text-blue-700">+7 (499) 322-48-42</a>
                   </div>
                 </div>
@@ -30,17 +29,7 @@ export function Contacts() {
 
             {/* Email and Address */}
             <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-stone-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <div>
-                  <p className="text-stone-800 font-medium">Email:</p>
-                  <a href="mailto:kiovo.cemetery@lobnya.ru" className="text-blue-600 hover:text-blue-700">
-                    kiovo.cemetery@lobnya.ru
-                  </a>
-                </div>
-              </div>
+   
 
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-stone-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
