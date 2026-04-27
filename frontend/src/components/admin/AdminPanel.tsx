@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { WysiwygEditor } from './WysiwygEditor';
 
 interface ContentData {
   [key: string]: string | Array<{ id: number; filename: string; title: string }>;
@@ -495,10 +494,11 @@ export function AdminPanel() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Текст</label>
-                  <WysiwygEditor
+                  <textarea
                     value={typeof content.general_info_content === 'string' ? content.general_info_content : ''}
-                    onChange={(value) => setContent({ ...content, general_info_content: value })}
-                    placeholder="Введите текст..."
+                    onChange={(e) => setContent({ ...content, general_info_content: e.target.value })}
+                    className="w-full border rounded px-3 py-2 font-mono text-sm"
+                    rows={10}
                   />
                 </div>
                 <button
@@ -546,16 +546,20 @@ export function AdminPanel() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Инструкция (авто)</label>
-                  <WysiwygEditor
+                  <textarea
                     value={typeof content.location_car === 'string' ? content.location_car : ''}
-                    onChange={(value) => setContent({ ...content, location_car: value })}
+                    onChange={(e) => setContent({ ...content, location_car: e.target.value })}
+                    className="w-full border rounded px-3 py-2 font-mono text-sm"
+                    rows={6}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Инструкция (транспорт)</label>
-                  <WysiwygEditor
+                  <textarea
                     value={typeof content.location_transport === 'string' ? content.location_transport : ''}
-                    onChange={(value) => setContent({ ...content, location_transport: value })}
+                    onChange={(e) => setContent({ ...content, location_transport: e.target.value })}
+                    className="w-full border rounded px-3 py-2 font-mono text-sm"
+                    rows={6}
                   />
                 </div>
                 <button
@@ -639,9 +643,11 @@ export function AdminPanel() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Правила</label>
-                  <WysiwygEditor
+                  <textarea
                     value={typeof content.hours_rules === 'string' ? content.hours_rules : ''}
-                    onChange={(value) => setContent({ ...content, hours_rules: value })}
+                    onChange={(e) => setContent({ ...content, hours_rules: e.target.value })}
+                    className="w-full border rounded px-3 py-2 font-mono text-sm"
+                    rows={6}
                   />
                 </div>
                 <button
