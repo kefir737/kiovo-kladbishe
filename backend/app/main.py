@@ -38,7 +38,7 @@ def get_db():
 
 # ============== API для контента ==============
 
-@app.get("/api/content", response_model=AllContentResponse)
+@app.get("/api/content", response_model=AllContentResponse, response_model_exclude_none=True)
 def get_all_content(db: Session = Depends(get_db)):
     """Получить весь контент для фронтенда"""
     content = {}
@@ -56,7 +56,11 @@ def get_all_content(db: Session = Depends(get_db)):
             try:
                 extra = json.loads(block.extra_data)
                 for k, v in extra.items():
-                    content[f"{block.key}_{k}"] = v
+                    # faq_items оставляем как JSON строку для схемы
+                    if k == 'items':
+                        content[f"{block.key}_{k}"] = block.extra_data
+                    else:
+                        content[f"{block.key}_{k}"] = v
             except:
                 pass
 
