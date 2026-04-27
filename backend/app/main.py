@@ -116,6 +116,10 @@ def get_all_content(db: Session = Depends(get_db)):
         for img in images
     ]
 
+    # Добавляем SEO настройки
+    for setting in db.query(SiteSettings).all():
+        content[setting.key] = setting.value
+
     return content
 
 
