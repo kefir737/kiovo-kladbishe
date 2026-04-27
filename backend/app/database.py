@@ -56,15 +56,6 @@ class AdminUser(Base):
     is_active = Column(Boolean, default=True)
 
 
-class SiteSettings(Base):
-    """Модель для настроек сайта (SEO, favicon)"""
-    __tablename__ = "site_settings"
-
-    id = Column(Integer, primary_key=True, index=True)
-    key = Column(String(100), unique=True, index=True, nullable=False)
-    value = Column(Text)
-
-
 def init_db():
     """Инициализация БД начальными данными"""
     Base.metadata.create_all(bind=engine)
