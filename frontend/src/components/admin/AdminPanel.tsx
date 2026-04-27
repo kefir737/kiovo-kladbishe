@@ -26,6 +26,10 @@ interface ContentData {
   faq_title: string;
   faq_items: string;
   gallery_images: Array<{ id: number; filename: string; title: string }>;
+  seo_title: string;
+  seo_description: string;
+  seo_keywords: string;
+  favicon: string;
 }
 
 export function AdminPanel() {
@@ -55,6 +59,10 @@ export function AdminPanel() {
     faq_title: '',
     faq_items: '',
     gallery_images: [],
+    seo_title: '',
+    seo_description: '',
+    seo_keywords: '',
+    favicon: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,6 +70,7 @@ export function AdminPanel() {
   const [loginError, setLoginError] = useState('');
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ old: '', new: '' });
+  const [seoForm, setSeoForm] = useState({ seo_title: '', seo_description: '', seo_keywords: '' });
 
   const API_BASE = '';
 
@@ -142,7 +151,11 @@ export function AdminPanel() {
     try {
       const response = await fetch(`${API_BASE}/api/content`);
       const data = await response.json();
-      
+
+      // Load SEO settings separately
+      const seoResponse = await fetch(`${API_BASE}/api/seo`);
+      const seoData = await seoResponse.json();
+
       // Ensure all string fields are strings
       const safeData: ContentData = {
         general_info_title: String(data.general_info_title || ''),
@@ -168,8 +181,18 @@ export function AdminPanel() {
         faq_title: String(data.faq_title || ''),
         faq_items: String(data.faq_items || ''),
         gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images : [],
+        seo_title: String(seoData.seo_title || ''),
+        seo_description: String(seoData.seo_description || ''),
+        seo_keywords: String(seoData.seo_keywords || ''),
+        favicon: String(data.favicon || ''),
       };
-      
+
+      setSeoForm({
+        seo_title: String(seoData.seo_title || ''),
+        seo_description: String(seoData.seo_description || ''),
+        seo_keywords: String(seoData.seo_keywords || ''),
+      });
+
       setContent(safeData);
     } catch (error) {
       console.error('Error loading content:', error);
@@ -289,9 +312,35 @@ export function AdminPanel() {
       });
       if (response.ok) {
         fileInput.value = '';
-        alert('Favicon загружен! Обновите страницу чтобы увидеть изменения.');
+        alert('Favicon загружен!');
+        loadContent();
       } else {
         alert('Ошибка загрузки');
+      }
+    } catch (error) {
+      alert('Ошибка подключения');
+    }
+  }
+
+  async function saveSeoSettings(e: React.FormEvent) {
+    e.preventDefault();
+    const token = localStorage.getItem('admin_token');
+
+    try {
+      const formData = new FormData();
+      formData.append('seo_title', seoForm.seo_title);
+      formData.append('seo_description', seoForm.seo_description);
+      formData.append('seo_keywords', seoForm.seo_keywords);
+
+      const response = await fetch(`${API_BASE}/api/seo`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      if (response.ok) {
+        alert('SEO настройки сохранены!');
+      } else {
+        alert('Ошибка сохранения');
       }
     } catch (error) {
       alert('Ошибка подключения');
@@ -757,6 +806,50 @@ export function AdminPanel() {
             <div>
               <h2 className="text-xl font-semibold mb-4">Настройки сайта</h2>
               <div className="space-y-4">
+                {/* SEO Settings */}
+                <div className="p-4 bg-gray-50 rounded">
+                  <h3 className="text-lg font-medium mb-4">SEO параметры</h3>
+                  <form onSubmit={saveSeoSettings} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Заголовок (title)</label>
+                      <input
+                        type="text"
+                        value={seoForm.seo_title}
+                        onChange={(e) => setSeoForm({ ...seoForm, seo_title: e.target.value })}
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="Кладбище «Киово» — Информационный портал"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Описание (description)</label>
+                      <textarea
+                        value={seoForm.seo_description}
+                        onChange={(e) => setSeoForm({ ...seoForm, seo_description: e.target.value })}
+                        className="w-full border rounded px-3 py-2"
+                        rows={3}
+                        placeholder="Официальный информационный портал кладбища «Киово»..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Ключевые слова (keywords)</label>
+                      <input
+                        type="text"
+                        value={seoForm.seo_keywords}
+                        onChange={(e) => setSeoForm({ ...seoForm, seo_keywords: e.target.value })}
+                        className="w-full border rounded px-3 py-2"
+                        placeholder="кладбище Киово, Лобня, ритуальные услуги"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+                    >
+                      Сохранить SEO
+                    </button>
+                  </form>
+                </div>
+
+                {/* Favicon */}
                 <div className="p-4 bg-gray-50 rounded">
                   <h3 className="text-lg font-medium mb-2">Favicon</h3>
                   <p className="text-sm text-gray-600 mb-4">Загрузите иконку для сайта (favicon.ico или favicon.svg)</p>
@@ -766,6 +859,12 @@ export function AdminPanel() {
                       Загрузить
                     </button>
                   </form>
+                  {content.favicon && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-600">Текущий favicon:</p>
+                      <img src={content.favicon} alt="Favicon" className="h-8 w-8 mt-2" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

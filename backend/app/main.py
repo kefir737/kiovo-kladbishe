@@ -271,7 +271,48 @@ def upload_favicon(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
+    # Сохраняем путь в БД
+    setting = db.query(SiteSettings).filter(SiteSettings.key == "favicon").first()
+    if not setting:
+        setting = SiteSettings(key="favicon", value=f"/uploads/{filename}")
+        db.add(setting)
+    else:
+        setting.value = f"/uploads/{filename}"
+    db.commit()
+    
     return {"filename": filename, "url": f"/uploads/{filename}"}
+
+
+@app.get("/api/seo")
+def get_seo_settings(db: Session = Depends(get_db)):
+    """Получить SEO настройки"""
+    settings = {}
+    for setting in db.query(SiteSettings).filter(SiteSettings.key.like("seo_%")).all():
+        settings[setting.key] = setting.value
+    return settings
+
+
+@app.put("/api/seo")
+def update_seo_settings(
+    seo_title: str = Form(None),
+    seo_description: str = Form(None),
+    seo_keywords: str = Form(None),
+    db: Session = Depends(get_db)
+):
+    """Обновить SEO настройки"""
+    fields = {"seo_title": seo_title, "seo_description": seo_description, "seo_keywords": seo_keywords}
+    
+    for key, value in fields.items():
+        if value is not None:
+            setting = db.query(SiteSettings).filter(SiteSettings.key == key).first()
+            if not setting:
+                setting = SiteSettings(key=key, value=value)
+                db.add(setting)
+            else:
+                setting.value = value
+    db.commit()
+    
+    return {"status": "ok"}
 
 
 # ============== Админ-панель ==============
