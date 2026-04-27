@@ -13,7 +13,6 @@ from app.schemas import (
     ContentBlockCreate, ContentBlockUpdate, ContentBlockResponse,
     GalleryImageResponse, AllContentResponse
 )
-from app.admin_html import ADMIN_HTML
 
 app = FastAPI(title="Kiovo Cemetery CMS")
 
@@ -217,9 +216,11 @@ def update_gallery_image(
 
 
 # ============== Админ-панель ==============
+# Админка теперь на React, доступна через frontend
 
-@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin")
 async def admin_panel():
-    """Админ-панель для управления контентом"""
-    return ADMIN_HTML
+    """Redirect to React admin panel"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/")
 
