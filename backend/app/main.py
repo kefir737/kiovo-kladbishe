@@ -156,19 +156,44 @@ def update_content_block(
     saturday: Optional[str] = Form(None),
     sunday: Optional[str] = Form(None),
     items: Optional[str] = Form(None),
+    seo_title: Optional[str] = Form(None),
+    seo_description: Optional[str] = Form(None),
+    seo_keywords: Optional[str] = Form(None),
+    favicon: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
-    """Обновить блок контента"""
+    """Обновить блок контента или SEO настройки"""
+    
+    # Если key = 'seo' — обновляем SEO настройки
+    if key == 'seo':
+        fields = {
+            'seo_title': seo_title,
+            'seo_description': seo_description,
+            'seo_keywords': seo_keywords,
+            'favicon': favicon
+        }
+        for setting_key, value in fields.items():
+            if value is not None:
+                setting = db.query(SiteSettings).filter(SiteSettings.key == setting_key).first()
+                if not setting:
+                    setting = SiteSettings(key=setting_key, value=value)
+                    db.add(setting)
+                else:
+                    setting.value = value
+        db.commit()
+        return {"status": "ok"}
+    
+    # Иначе обновляем ContentBlock
     block = db.query(ContentBlock).filter(ContentBlock.key == key).first()
     if not block:
         block = ContentBlock(key=key)
         db.add(block)
-    
+
     if title is not None:
         block.title = title
     if content is not None:
         block.content = content
-    
+
     # Собираем extra_data
     extra = {}
     for field_name, value in [
@@ -180,10 +205,10 @@ def update_content_block(
     ]:
         if value is not None and value.strip():
             extra[field_name] = value
-    
+
     if extra:
         block.extra_data = json.dumps(extra, ensure_ascii=False)
-    
+
     db.commit()
     db.refresh(block)
     return block
@@ -318,29 +343,6 @@ def upload_favicon(
     db.commit()
     
     return {"filename": filename, "url": f"/uploads/{filename}"}
-
-
-@app.put("/api/content/seo")
-def update_seo_settings(
-    seo_title: str = Form(None),
-    seo_description: str = Form(None),
-    seo_keywords: str = Form(None),
-    db: Session = Depends(get_db)
-):
-    """Обновить SEO настройки"""
-    fields = {"seo_title": seo_title, "seo_description": seo_description, "seo_keywords": seo_keywords}
-
-    for key, value in fields.items():
-        if value is not None:
-            setting = db.query(SiteSettings).filter(SiteSettings.key == key).first()
-            if not setting:
-                setting = SiteSettings(key=key, value=value)
-                db.add(setting)
-            else:
-                setting.value = value
-    db.commit()
-    
-    return {"status": "ok"}
 
 
 # ============== Админ-панель ==============
