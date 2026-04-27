@@ -29,16 +29,89 @@ interface ContentData {
 }
 
 export function AdminPanel() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const [content, setContent] = useState<ContentData>({} as ContentData);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ old: '', new: '' });
 
   const API_BASE = '';
 
   useEffect(() => {
-    loadContent();
+    const token = localStorage.getItem('admin_token');
+    if (token) {
+      setIsAuthenticated(true);
+      loadContent();
+    } else {
+      setLoading(false);
+    }
   }, []);
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoginError('');
+    
+    try {
+      const formData = new FormData();
+      formData.append('username', loginForm.username);
+      formData.append('password', loginForm.password);
+      
+      const response = await fetch(`${API_BASE}/api/login`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('admin_token', data.access_token);
+        setIsAuthenticated(true);
+        loadContent();
+      } else {
+        const error = await response.json();
+        setLoginError(error.detail || 'Ошибка входа');
+      }
+    } catch (error) {
+      setLoginError('Ошибка подключения');
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('admin_token');
+    setIsAuthenticated(false);
+    setLoginForm({ username: '', password: '' });
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    const token = localStorage.getItem('admin_token');
+    
+    try {
+      const formData = new FormData();
+      formData.append('old_password', passwordForm.old);
+      formData.append('new_password', passwordForm.new);
+      
+      const response = await fetch(`${API_BASE}/api/change-password`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      
+      if (response.ok) {
+        alert('Пароль изменён!');
+        setPasswordForm({ old: '', new: '' });
+        setShowPasswordChange(false);
+      } else {
+        const error = await response.json();
+        alert(error.detail || 'Ошибка');
+      }
+    } catch (error) {
+      alert('Ошибка подключения');
+    }
+  }
 
   async function loadContent() {
     try {
@@ -54,6 +127,8 @@ export function AdminPanel() {
 
   async function saveContent(section: string) {
     setSaving(true);
+    const token = localStorage.getItem('admin_token');
+    
     try {
       const formData = new FormData();
       const titleKey = `${section}_title`;
@@ -77,6 +152,7 @@ export function AdminPanel() {
 
       const response = await fetch(`${API_BASE}/api/content/${section}`, {
         method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
 
@@ -95,6 +171,7 @@ export function AdminPanel() {
 
   async function uploadImage(e: React.FormEvent) {
     e.preventDefault();
+    const token = localStorage.getItem('admin_token');
     const fileInput = document.getElementById('gallery_file') as HTMLInputElement;
     const titleInput = document.getElementById('gallery_title') as HTMLInputElement;
     
@@ -107,6 +184,7 @@ export function AdminPanel() {
     try {
       const response = await fetch(`${API_BASE}/api/gallery/upload`, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
       if (response.ok) {
@@ -122,8 +200,13 @@ export function AdminPanel() {
 
   async function deleteImage(id: number) {
     if (!confirm('Удалить фото?')) return;
+    const token = localStorage.getItem('admin_token');
+    
     try {
-      const response = await fetch(`${API_BASE}/api/gallery/${id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE}/api/gallery/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
       if (response.ok) loadContent();
     } catch (error) {
       alert('Ошибка удаления');
@@ -142,10 +225,107 @@ export function AdminPanel() {
 
   if (loading) return <div className="p-8 text-center">Загрузка...</div>;
 
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+          <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">CMS - Кладбище «Киово»</h1>
+          <h2 className="text-lg text-gray-600 mb-6 text-center">Вход для администраторов</h2>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Имя пользователя</label>
+              <input
+                type="text"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Пароль</label>
+              <input
+                type="password"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+                required
+              />
+            </div>
+            {loginError && <p className="text-red-600 text-sm">{loginError}</p>}
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+            >
+              Войти
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">CMS - Кладбище «Киово»</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">CMS - Кладбище «Киово»</h1>
+          <div className="flex gap-4 items-center">
+            <button
+              onClick={() => setShowPasswordChange(!showPasswordChange)}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              Сменить пароль
+            </button>
+            <button
+              onClick={handleLogout}
+              className="text-red-600 hover:text-red-800 font-medium"
+            >
+              Выйти
+            </button>
+          </div>
+        </div>
+
+        {showPasswordChange && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Смена пароля</h3>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Текущий пароль</label>
+                <input
+                  type="password"
+                  value={passwordForm.old}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, old: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Новый пароль</label>
+                <input
+                  type="password"
+                  value={passwordForm.new}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+              </div>
+              <div className="flex gap-4">
+                <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+                  Изменить пароль
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowPasswordChange(false); setPasswordForm({ old: '', new: '' }); }}
+                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400"
+                >
+                  Отмена
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-gray-300 overflow-x-auto">

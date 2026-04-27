@@ -1,17 +1,22 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
 import os
 import shutil
 from pathlib import Path
+from datetime import timedelta
 
-from app.database import SessionLocal, engine, ContentBlock, SiteSettings, GalleryImage, init_db
+from app.database import SessionLocal, engine, ContentBlock, SiteSettings, GalleryImage, AdminUser, init_db
 from app.schemas import (
     ContentBlockCreate, ContentBlockUpdate, ContentBlockResponse,
     GalleryImageResponse, AllContentResponse
+)
+from app.auth import (
+    verify_password, get_password_hash, create_access_token,
+    get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES, security
 )
 
 app = FastAPI(title="Kiovo Cemetery CMS")
@@ -34,6 +39,38 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# ============== API Аутентификация ==============
+
+@app.post("/api/login")
+def login(username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+    """Вход для администратора"""
+    user = db.query(AdminUser).filter(AdminUser.username == username).first()
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Неверное имя пользователя или пароль")
+    
+    access_token = create_access_token(
+        data={"sub": user.username},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/api/change-password")
+def change_password(
+    old_password: str = Form(...),
+    new_password: str = Form(...),
+    current_user: AdminUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Смена пароля"""
+    if not verify_password(old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Неверный текущий пароль")
+    
+    current_user.hashed_password = get_password_hash(new_password)
+    db.commit()
+    return {"message": "Пароль изменён"}
 
 
 # ============== API для контента ==============

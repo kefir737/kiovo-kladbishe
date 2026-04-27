@@ -42,12 +42,36 @@ class GalleryImage(Base):
     is_active = Column(Boolean, default=True)
 
 
+class AdminUser(Base):
+    """Модель для администратора"""
+    __tablename__ = "admin_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(200), nullable=False)
+    is_active = Column(Boolean, default=True)
+
+
 def init_db():
     """Инициализация БД начальными данными"""
     Base.metadata.create_all(bind=engine)
-    
+
     db = SessionLocal()
     try:
+        # Создаём администратора по умолчанию (admin/admin123)
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        admin = db.query(AdminUser).filter(AdminUser.username == "admin").first()
+        if not admin:
+            admin = AdminUser(
+                username="admin",
+                hashed_password=pwd_context.hash("admin123"),
+                is_active=True
+            )
+            db.add(admin)
+            print("Created default admin user: admin / admin123")
+        
         initial_content = [
             ContentBlock(
                 key="general_info",
