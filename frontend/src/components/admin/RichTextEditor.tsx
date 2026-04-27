@@ -12,9 +12,12 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
     onChange(e.target.value);
   };
 
+  // Ensure value is always a string
+  const stringValue = typeof value === 'string' ? value : '';
+
   return (
     <Editor
-      value={value}
+      value={stringValue}
       onChange={handleChange}
       placeholder={placeholder}
       style={{ minHeight: '150px' }}
