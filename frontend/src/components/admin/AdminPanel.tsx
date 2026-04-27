@@ -327,7 +327,7 @@ export function AdminPanel() {
       formData.append('seo_description', seoForm.seo_description);
       formData.append('seo_keywords', seoForm.seo_keywords);
 
-      const response = await fetch(`${API_BASE}/api/content/seo`, {
+      const response = await fetch(`${API_BASE}/api/content`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,

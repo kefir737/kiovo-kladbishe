@@ -138,9 +138,8 @@ def get_content_block(key: str, db: Session = Depends(get_db)):
     }
 
 
-@app.put("/api/content/{key}")
-def update_content_block(
-    key: str,
+@app.put("/api/content")
+def update_content(
     title: Optional[str] = Form(None),
     content: Optional[str] = Form(None),
     address: Optional[str] = Form(None),
@@ -162,17 +161,19 @@ def update_content_block(
     favicon: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
-    """Обновить блок контента или SEO настройки"""
+    """Обновить контент или SEO настройки"""
     
-    # Если key = 'seo' — обновляем SEO настройки
-    if key == 'seo':
-        fields = {
-            'seo_title': seo_title,
-            'seo_description': seo_description,
-            'seo_keywords': seo_keywords,
-            'favicon': favicon
-        }
-        for setting_key, value in fields.items():
+    # Если есть SEO поля — обновляем SiteSettings
+    seo_fields = {
+        'seo_title': seo_title,
+        'seo_description': seo_description,
+        'seo_keywords': seo_keywords,
+        'favicon': favicon
+    }
+    has_seo = any(v is not None and v.strip() for v in seo_fields.values() if isinstance(v, str))
+    
+    if has_seo:
+        for setting_key, value in seo_fields.items():
             if value is not None:
                 setting = db.query(SiteSettings).filter(SiteSettings.key == setting_key).first()
                 if not setting:
@@ -180,10 +181,36 @@ def update_content_block(
                     db.add(setting)
                 else:
                     setting.value = value
-        db.commit()
-        return {"status": "ok"}
     
-    # Иначе обновляем ContentBlock
+    # Если есть title или content — обновляем ContentBlock
+    # Определяем key из заголовка или используем default
+    # Для обратной совместимости поддерживаем и /api/content/{key}
+    
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.put("/api/content/{key}")
+def update_content_block(
+    key: str,
+    title: Optional[str] = Form(None),
+    content: Optional[str] = Form(None),
+    address: Optional[str] = Form(None),
+    coords: Optional[str] = Form(None),
+    car: Optional[str] = Form(None),
+    transport: Optional[str] = Form(None),
+    summer: Optional[str] = Form(None),
+    winter: Optional[str] = Form(None),
+    rules: Optional[str] = Form(None),
+    org: Optional[str] = Form(None),
+    phone: Optional[str] = Form(None),
+    weekday: Optional[str] = Form(None),
+    saturday: Optional[str] = Form(None),
+    sunday: Optional[str] = Form(None),
+    items: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """Обновить блок контента"""
     block = db.query(ContentBlock).filter(ContentBlock.key == key).first()
     if not block:
         block = ContentBlock(key=key)
