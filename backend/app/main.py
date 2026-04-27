@@ -75,7 +75,7 @@ def change_password(
 
 # ============== API для контента ==============
 
-@app.get("/api/content", response_model=AllContentResponse, response_model_exclude_none=True)
+@app.get("/api/content")
 def get_all_content(db: Session = Depends(get_db)):
     """Получить весь контент для фронтенда"""
     content = {}
