@@ -63,21 +63,9 @@ export function Infrastructure() {
           Планировка и инфраструктура
         </h2>
         <p className="text-stone-600 mb-10 text-lg">
-          Территория разделена на <strong className="text-stone-800">12 пронумерованных участков</strong>. 
+          Территория разделена на <strong className="text-stone-800">12 пронумерованных участков</strong>.
           У каждого входа размещены стенды со схемой расположения рядов и мест.
         </p>
-
-        {/* Sections Grid */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mb-12">
-          {Array.from({ length: 12 }, (_, i) => (
-            <div
-              key={i}
-              className="aspect-square bg-stone-100 rounded-lg flex items-center justify-center hover:bg-stone-200 transition-colors"
-            >
-              <span className="text-2xl font-bold text-stone-600">{i + 1}</span>
-            </div>
-          ))}
-        </div>
 
         {/* Facilities Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
