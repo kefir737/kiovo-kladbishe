@@ -65,11 +65,17 @@ def change_password(
     db: Session = Depends(get_db)
 ):
     """Смена пароля"""
-    if not verify_password(old_password, current_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Неверный текущий пароль")
+    # Получаем пользователя из текущей сессии
+    user = db.query(AdminUser).filter(AdminUser.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
     
-    current_user.hashed_password = get_password_hash(new_password)
+    if not verify_password(old_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Неверный текущий пароль")
+
+    user.hashed_password = get_password_hash(new_password)
     db.commit()
+    db.refresh(user)
     return {"message": "Пароль изменён"}
 
 
