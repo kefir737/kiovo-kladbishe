@@ -29,7 +29,7 @@ UPLOAD_DIR = Path("/app/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Монтируем статику для загруженных файлов
-app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+app.mount("/uploads/", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 # Dependency для получения сессии БД
