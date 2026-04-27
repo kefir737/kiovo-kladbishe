@@ -1,4 +1,7 @@
+import { useContent } from '../context/ContentContext';
+
 export function Footer() {
+  const { content } = useContent();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -29,14 +32,12 @@ export function Footer() {
             <h3 className="text-white font-semibold mb-3">Контакты</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="tel:+7495XXXXXXX" className="hover:text-white transition-colors">
-                  +7 (495) XXX-XX-XX
+                <a href={`tel:${content.contacts_phone?.replace(/\s/g, '') || '+74993224842'}`} className="hover:text-white transition-colors">
+                  {content.contacts_phone || '+7 (499) 322-48-42'}
                 </a>
               </li>
               <li>
-                <a href="mailto:kiovo.cemetery@lobnya.ru" className="hover:text-white transition-colors">
-                  kiovo.cemetery@lobnya.ru
-                </a>
+                <span className="text-stone-400">{content.contacts_address || 'Кабинет администрации у центрального входа'}</span>
               </li>
             </ul>
           </div>

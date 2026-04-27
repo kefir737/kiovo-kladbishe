@@ -258,7 +258,20 @@ def update_gallery_image(
     return image
 
 
-# ============== Админ-панель с Tiptap ==============
+@app.post("/api/upload-favicon")
+def upload_favicon(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """Загрузить favicon"""
+    file_extension = file.filename.split(".")[-1] if "." in file.filename else "svg"
+    filename = f"favicon.{file_extension}"
+    file_path = UPLOAD_DIR / filename
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    return {"filename": filename, "url": f"/uploads/{filename}"}
 
 
 # ============== Админ-панель ==============

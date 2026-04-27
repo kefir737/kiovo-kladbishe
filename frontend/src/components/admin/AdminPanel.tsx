@@ -20,9 +20,9 @@ interface ContentData {
   contacts_org: string;
   contacts_phone: string;
   contacts_address: string;
-  hours_weekday: string;
-  hours_saturday: string;
-  hours_sunday: string;
+  contacts_weekday: string;
+  contacts_saturday: string;
+  contacts_sunday: string;
   faq_title: string;
   faq_items: string;
   gallery_images: Array<{ id: number; filename: string; title: string }>;
@@ -49,9 +49,9 @@ export function AdminPanel() {
     contacts_org: '',
     contacts_phone: '',
     contacts_address: '',
-    hours_weekday: '',
-    hours_saturday: '',
-    hours_sunday: '',
+    contacts_weekday: '',
+    contacts_saturday: '',
+    contacts_sunday: '',
     faq_title: '',
     faq_items: '',
     gallery_images: [],
@@ -162,9 +162,9 @@ export function AdminPanel() {
         contacts_org: String(data.contacts_org || ''),
         contacts_phone: String(data.contacts_phone || ''),
         contacts_address: String(data.contacts_address || ''),
-        hours_weekday: String(data.hours_weekday || ''),
-        hours_saturday: String(data.hours_saturday || ''),
-        hours_sunday: String(data.hours_sunday || ''),
+        contacts_weekday: String(data.weekday || ''),
+        contacts_saturday: String(data.saturday || ''),
+        contacts_sunday: String(data.sunday || ''),
         faq_title: String(data.faq_title || ''),
         faq_items: String(data.faq_items || ''),
         gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images : [],
@@ -193,8 +193,14 @@ export function AdminPanel() {
       if (typeof titleValue === 'string' && titleValue) formData.append('title', titleValue);
       if (typeof contentValue === 'string' && contentValue) formData.append('content', contentValue);
       
-      // Extra fields
-      const extraFields = ['address', 'coords', 'car', 'transport', 'summer', 'winter', 'rules', 'org', 'phone', 'weekday', 'saturday', 'sunday', 'items'];
+      // Extra fields - base list
+      let extraFields = ['address', 'coords', 'car', 'transport', 'summer', 'winter', 'rules', 'org', 'phone', 'items'];
+      
+      // Add reception hours when saving contacts
+      if (section === 'contacts') {
+        extraFields = extraFields.concat(['weekday', 'saturday', 'sunday']);
+      }
+      
       extraFields.forEach(field => {
         const key = `${section}_${field}`;
         const value = content[key];
@@ -254,15 +260,41 @@ export function AdminPanel() {
   async function deleteImage(id: number) {
     if (!confirm('Удалить фото?')) return;
     const token = localStorage.getItem('admin_token');
-    
+
     try {
-      const response = await fetch(`${API_BASE}/api/gallery/${id}`, { 
+      const response = await fetch(`${API_BASE}/api/gallery/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) loadContent();
     } catch (error) {
       alert('Ошибка удаления');
+    }
+  }
+
+  async function uploadFavicon(e: React.FormEvent) {
+    e.preventDefault();
+    const token = localStorage.getItem('admin_token');
+    const fileInput = document.getElementById('favicon_file') as HTMLInputElement;
+    if (!fileInput.files?.[0]) return;
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/upload-favicon`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      if (response.ok) {
+        fileInput.value = '';
+        alert('Favicon загружен! Обновите страницу чтобы увидеть изменения.');
+      } else {
+        alert('Ошибка загрузки');
+      }
+    } catch (error) {
+      alert('Ошибка подключения');
     }
   }
 
@@ -274,6 +306,7 @@ export function AdminPanel() {
     { id: 'contacts', label: 'Контакты' },
     { id: 'faq', label: 'FAQ' },
     { id: 'gallery', label: 'Галерея' },
+    { id: 'settings', label: 'Настройки' },
   ];
 
   if (loading) return <div className="p-8 text-center">Загрузка...</div>;
@@ -619,8 +652,8 @@ export function AdminPanel() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Пн-Пт</label>
                     <input
                       type="text"
-                      value={content.hours_weekday || ''}
-                      onChange={(e) => setContent({ ...content, hours_weekday: e.target.value })}
+                      value={content.contacts_weekday || ''}
+                      onChange={(e) => setContent({ ...content, contacts_weekday: e.target.value })}
                       className="w-full border rounded px-3 py-2"
                     />
                   </div>
@@ -628,8 +661,8 @@ export function AdminPanel() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Сб</label>
                     <input
                       type="text"
-                      value={content.hours_saturday || ''}
-                      onChange={(e) => setContent({ ...content, hours_saturday: e.target.value })}
+                      value={content.contacts_saturday || ''}
+                      onChange={(e) => setContent({ ...content, contacts_saturday: e.target.value })}
                       className="w-full border rounded px-3 py-2"
                     />
                   </div>
@@ -637,8 +670,8 @@ export function AdminPanel() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Вс</label>
                     <input
                       type="text"
-                      value={content.hours_sunday || ''}
-                      onChange={(e) => setContent({ ...content, hours_sunday: e.target.value })}
+                      value={content.contacts_sunday || ''}
+                      onChange={(e) => setContent({ ...content, contacts_sunday: e.target.value })}
                       className="w-full border rounded px-3 py-2"
                     />
                   </div>
@@ -715,6 +748,25 @@ export function AdminPanel() {
                   </div>
                 ))}
                 {!Array.isArray(content.gallery_images) && <p className="text-gray-500">Загрузка...</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Settings */}
+          {activeTab === 'settings' && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Настройки сайта</h2>
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 rounded">
+                  <h3 className="text-lg font-medium mb-2">Favicon</h3>
+                  <p className="text-sm text-gray-600 mb-4">Загрузите иконку для сайта (favicon.ico или favicon.svg)</p>
+                  <form onSubmit={uploadFavicon} className="flex gap-4 items-center">
+                    <input type="file" id="favicon_file" accept=".ico,.svg,.png" className="border rounded px-3 py-2" required />
+                    <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                      Загрузить
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
           )}

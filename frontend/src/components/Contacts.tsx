@@ -59,15 +59,15 @@ export function Contacts() {
           <div className="grid md:grid-cols-3 gap-4">
             <div className="bg-stone-50 rounded p-4 text-center">
               <p className="text-stone-500 text-sm">Пн–Пт</p>
-              <p className="text-stone-800 font-semibold text-lg">{content.hours_weekday || '09:00–17:00'}</p>
+              <p className="text-stone-800 font-semibold text-lg">{content.contacts_weekday || '09:00–17:00'}</p>
             </div>
             <div className="bg-stone-50 rounded p-4 text-center">
               <p className="text-stone-500 text-sm">Сб</p>
-              <p className="text-stone-800 font-semibold text-lg">{content.hours_saturday || '10:00–14:00'}</p>
+              <p className="text-stone-800 font-semibold text-lg">{content.contacts_saturday || '10:00–14:00'}</p>
             </div>
             <div className="bg-stone-100 rounded p-4 text-center">
               <p className="text-stone-500 text-sm">Вс</p>
-              <p className="text-stone-600 font-semibold text-lg">{content.hours_sunday || 'Выходной'}</p>
+              <p className="text-stone-600 font-semibold text-lg">{content.contacts_sunday || 'Выходной'}</p>
             </div>
           </div>
         </div>

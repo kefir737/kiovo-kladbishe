@@ -29,9 +29,9 @@ export function Location() {
               <p className="text-stone-600 mt-2">
                 <strong>Координаты:</strong> {content.location_coords || '56.0342° N, 37.4815° E'}
               </p>
-              <a 
-                href="https://yandex.ru/maps/?text=56.0342,37.4815" 
-                target="_blank" 
+              <a
+                href="https://yandex.ru/maps/-/CPGtVQND"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block mt-3 text-blue-600 hover:text-blue-700 underline"
               >
