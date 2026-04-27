@@ -150,28 +150,101 @@ echo "✓ Nginx настроен"
 # 6. SSL сертификат
 echo ""
 echo "[6/7] Настройка SSL..."
-nginx -t
-if systemctl is-active --quiet nginx; then
-    systemctl reload nginx
-else
-    systemctl start nginx
-fi
 
+# Сначала создаём HTTP-конфиг (без SSL) для получения сертификата
+cat > /etc/nginx/sites-available/$DOMAIN << 'NGINX_HTTP'
+server {
+    listen 80;
+    server_name kladbishe-kiovo.ru www.kladbishe-kiovo.ru;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        proxy_pass http://localhost:8082;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+NGINX_HTTP
+
+ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+mkdir -p /var/www/certbot
+nginx -t && systemctl reload nginx
+
+# Получение сертификата
 if [ ! -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
     echo "Получение SSL сертификата..."
-    certbot --nginx \
+    certbot certonly --webroot -w /var/www/certbot \
         -d $DOMAIN \
         -d www.$DOMAIN \
         --non-interactive \
         --agree-tos \
-        --email admin@$DOMAIN \
-        --redirect || echo "⚠️  Certbot не сработал (возможно, домен ещё не настроен)"
+        --email admin@$DOMAIN || {
+        echo "⚠️  Certbot не сработал. Проверьте DNS настройки домена."
+        echo "   Домен должен указывать на 72.56.6.54"
+        echo ""
+        echo "   Временный доступ: http://72.56.6.54:8082"
+    }
 else
     echo "✓ SSL сертификат уже существует"
 fi
 
-nginx -t && systemctl reload nginx
-echo "✓ SSL настроен"
+# Обновляем конфиг с SSL
+if [ -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
+    echo "Настройка HTTPS..."
+    cat > /etc/nginx/sites-available/$DOMAIN << 'NGINX_SSL'
+server {
+    listen 80;
+    server_name kladbishe-kiovo.ru www.kladbishe-kiovo.ru;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name kladbishe-kiovo.ru www.kladbishe-kiovo.ru;
+
+    ssl_certificate /etc/letsencrypt/live/kladbishe-kiovo.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/kladbishe-kiovo.ru/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://localhost:8082;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+}
+NGINX_SSL
+
+    nginx -t && systemctl reload nginx
+    echo "✓ HTTPS настроен"
+else
+    echo "⚠️  SSL сертификат не получен. Сайт доступен по HTTP."
+fi
 
 # 7. Проверка
 echo ""
