@@ -46,7 +46,9 @@ def get_all_content(db: Session = Depends(get_db)):
     # Получаем текстовые блоки
     blocks = db.query(ContentBlock).all()
     for block in blocks:
+        # Возвращаем и {key}, и {key}_content для совместимости
         content[block.key] = block.content
+        content[f"{block.key}_content"] = block.content
         if block.title:
             content[f"{block.key}_title"] = block.title
         if block.extra_data:
