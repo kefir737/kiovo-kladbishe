@@ -50,11 +50,25 @@ echo "[2/7] Загрузка кода..."
 if [ -d "$PROJECT_DIR/.git" ]; then
     echo "Обновление репозитория..."
     cd "$PROJECT_DIR"
-    git pull || {
-        echo "⚠️  Ошибка git pull. Проверьте SSH-ключ или используйте токен."
-        echo "Альтернатива: git clone https://TOKEN@github.com/kefir737/kiovo-kladbishe.git"
-        exit 1
-    }
+    # Проверка: есть ли docker-compose.yml
+    if [ ! -f docker-compose.yml ]; then
+        echo "⚠️  docker-compose.yml не найден. Пересоздаём репозиторий..."
+        cd /tmp
+        rm -rf "$PROJECT_DIR"
+        mkdir -p "$PROJECT_DIR"
+        cd "$PROJECT_DIR"
+        git clone "$REPO_URL" . || {
+            echo "⚠️  Не удалось клонировать по SSH."
+            echo "Попробуйте HTTPS с токеном:"
+            echo "  git clone https://ВАШ_ТОКЕН@github.com/kefir737/kiovo-kladbishe.git ."
+            exit 1
+        }
+    else
+        git pull || {
+            echo "⚠️  Ошибка git pull. Проверьте SSH-ключ или используйте токен."
+            exit 1
+        }
+    fi
 else
     echo "Клонирование репозитория..."
     mkdir -p "$PROJECT_DIR"
