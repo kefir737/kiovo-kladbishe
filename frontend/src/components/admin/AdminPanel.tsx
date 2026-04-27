@@ -117,7 +117,15 @@ export function AdminPanel() {
     try {
       const response = await fetch(`${API_BASE}/api/content`);
       const data = await response.json();
-      setContent(data);
+      
+      // Ensure gallery_images is always an array
+      const galleryImages = data.gallery_images;
+      const safeGalleryImages = Array.isArray(galleryImages) ? galleryImages : [];
+      
+      setContent({
+        ...data,
+        gallery_images: safeGalleryImages
+      });
     } catch (error) {
       console.error('Error loading content:', error);
     } finally {
