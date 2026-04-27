@@ -8,8 +8,8 @@ import os
 import shutil
 from pathlib import Path
 
-from database import SessionLocal, engine, ContentBlock, SiteSettings, GalleryImage
-from schemas import (
+from app.database import SessionLocal, engine, ContentBlock, SiteSettings, GalleryImage
+from app.schemas import (
     ContentBlockCreate, ContentBlockUpdate, ContentBlockResponse,
     GalleryImageResponse, AllContentResponse
 )

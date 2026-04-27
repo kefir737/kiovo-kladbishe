@@ -6,7 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копирование кода
+# Копирование кода (копируем всю папку app как пакет)
 COPY app/ ./app/
 
 # Создание директорий
@@ -15,5 +15,5 @@ RUN mkdir -p /app/uploads
 # Порт для backend
 EXPOSE 8000
 
-# Запуск
+# Запуск (app.main — это app/app/main.py)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
