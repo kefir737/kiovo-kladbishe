@@ -10,6 +10,7 @@ import { HoursAndRules } from './components/HoursAndRules'
 import { Contacts } from './components/Contacts'
 import { FAQ } from './components/FAQ'
 import { Footer } from './components/Footer'
+import { SchemaOrg } from './components/SchemaOrg'
 import './index.css'
 
 function App() {
@@ -70,6 +71,7 @@ function App() {
 
   return (
     <>
+      <SchemaOrg />
       <Navigation />
       <Hero />
       <GeneralInfo />
