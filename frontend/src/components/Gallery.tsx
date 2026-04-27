@@ -16,7 +16,7 @@ export function Gallery() {
     );
   }
 
-  const images = content.gallery_images || [];
+  const images = Array.isArray(content.gallery_images) ? content.gallery_images : [];
 
   if (images.length === 0) {
     return null; // Don't show section if no images

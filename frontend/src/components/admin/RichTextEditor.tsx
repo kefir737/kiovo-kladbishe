@@ -1,6 +1,3 @@
-import { Editor } from 'react-simple-wysiwyg';
-import type { ContentEditableEvent } from 'react-simple-wysiwyg';
-
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -8,20 +5,14 @@ interface RichTextEditorProps {
 }
 
 export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
-  const handleChange = (e: ContentEditableEvent) => {
-    const newValue = typeof e.target.value === 'string' ? e.target.value : '';
-    onChange(newValue);
-  };
-
-  // Гарантируем что value всегда строка
-  const stringValue = typeof value === 'string' ? value : '';
-
   return (
-    <Editor
-      value={stringValue}
-      onChange={handleChange}
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      style={{ minHeight: '150px', border: '1px solid #d1d5db', borderRadius: '0.375rem' }}
+      rows={8}
+      className="w-full border rounded px-3 py-2 font-mono text-sm"
+      style={{ fontFamily: 'monospace', fontSize: '13px', minHeight: '150px' }}
     />
   );
 }

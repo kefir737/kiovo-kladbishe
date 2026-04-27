@@ -16,7 +16,11 @@ export function ContentProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await fetch('/api/content');
       const data = await response.json();
-      setContent(data);
+      // Ensure gallery_images is always an array
+      setContent({
+        ...data,
+        gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images : [],
+      });
     } catch (error) {
       console.error('Error fetching content:', error);
     } finally {
