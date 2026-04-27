@@ -649,7 +649,7 @@ export function AdminPanel() {
                 </div>
               </form>
               <div className="grid grid-cols-4 gap-4">
-                {content.gallery_images?.map((img) => (
+                {Array.isArray(content.gallery_images) && content.gallery_images.map((img) => (
                   <div key={img.id} className="relative group">
                     <img src={`/uploads/${img.filename}`} alt={img.title} className="w-full h-48 object-cover rounded" />
                     <p className="text-sm mt-1">{img.title || 'Без названия'}</p>
@@ -661,6 +661,7 @@ export function AdminPanel() {
                     </button>
                   </div>
                 ))}
+                {!Array.isArray(content.gallery_images) && <p className="text-gray-500">Загрузка...</p>}
               </div>
             </div>
           )}
