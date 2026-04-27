@@ -60,7 +60,7 @@ def init_db():
                 key="location",
                 title="Расположение и схема проезда",
                 content="",
-                extra_data='{"address": "Московская область, г.о. Лобня, д. Киово, северная окраина", "coords": "56.0342° N, 37.4815° E"}'
+                extra_data='{"address": "Московская область, г.о. Лобня, д. Киово, северная окраина", "coords": "56.0342° N, 37.4815° E", "car": "<p>От МКАД по Дмитровскому шоссе → съезд на Лобню → далее по ул. Ленина до перекрёстка с указателем на д. Киово → по главной дороге деревни до шлагбаума кладбища.</p>", "transport": "<p>От ж/д станции <strong>«Лобня»</strong> (Савёловское направление МЦД-1) автобусом № 22 или маршрутным такси № 22к до остановки «Деревня Киово». Далее пешком ~800 м.</p>"}'
             ),
             ContentBlock(
                 key="infrastructure",
@@ -71,13 +71,13 @@ def init_db():
                 key="hours",
                 title="Часы работы и правила посещения",
                 content="",
-                extra_data='{"summer": "08:00–20:00", "winter": "09:00–18:00"}'
+                extra_data='{"summer": "08:00–20:00", "winter": "09:00–18:00", "rules": "<p><strong>Вход свободный.</strong> Захоронения и подзахоронения — только по предварительному разрешению.</p><ul><li>Запрещается разводить костры, оставлять стеклянную тару</li><li>Транспорт допускается только по пропускам</li><li>Уход за могилами осуществляется родственниками или по договору</li></ul>"}'
             ),
             ContentBlock(
                 key="contacts",
                 title="Контакты администрации",
                 content="",
-                extra_data='{"org": "МКУ «Ритуальные услуги г.о. Лобня»", "phone": "+7 (499) 322-48-42"}'
+                extra_data='{"org": "МКУ «Ритуальные услуги г.о. Лобня»", "phone": "+7 (499) 322-48-42", "address": "Кабинет администрации у центрального входа, здание с вывеской «Ритуальные услуги»", "weekday": "09:00–17:00", "saturday": "10:00–14:00", "sunday": "Выходной"}'
             ),
             ContentBlock(
                 key="faq",
@@ -91,6 +91,14 @@ def init_db():
             existing = db.query(ContentBlock).filter(ContentBlock.key == item.key).first()
             if not existing:
                 db.add(item)
+            else:
+                # Обновляем пустые поля
+                if not existing.title and item.title:
+                    existing.title = item.title
+                if not existing.content and item.content:
+                    existing.content = item.content
+                if not existing.extra_data and item.extra_data:
+                    existing.extra_data = item.extra_data
         
         db.commit()
     finally:
