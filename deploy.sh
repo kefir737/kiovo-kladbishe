@@ -28,7 +28,7 @@ if [ ! -f ~/.ssh/id_ed25519 ] && [ ! -f ~/.ssh/id_rsa ]; then
 fi
 
 # 1. Проверка зависимостей
-echo "[1/7] Проверка зависимостей..."
+echo "[1/6] Проверка зависимостей..."
 command -v docker >/dev/null 2>&1 || {
     echo "Установка Docker..."
     apt-get update -qq && apt-get install -y -qq docker.io docker-compose
@@ -46,7 +46,7 @@ echo "✓ Зависимости установлены"
 
 # 2. Клонирование репозитория
 echo ""
-echo "[2/7] Загрузка кода..."
+echo "[2/6] Загрузка кода..."
 if [ -d "$PROJECT_DIR/.git" ]; then
     echo "Обновление репозитория..."
     cd "$PROJECT_DIR"
@@ -82,28 +82,29 @@ else
 fi
 echo "✓ Код загружен"
 
-# 3. Сборка Docker контейнера
+# 3. Перезапуск Docker контейнеров (без пересборки для экономии лимитов Docker Hub)
 echo ""
-echo "[3/7] Сборка Docker..."
-echo "Переход в $PROJECT_DIR..."
+echo "[3/6] Перезапуск контейнеров..."
 cd "$PROJECT_DIR" || { echo "Ошибка: не удалось перейти в $PROJECT_DIR"; exit 1; }
-pwd
-ls -la docker-compose.yml || { echo "Ошибка: docker-compose.yml не найден"; exit 1; }
-docker compose down --remove-orphans 2>/dev/null || true
-docker compose build
-echo "✓ Docker собран"
 
-# 4. Запуск контейнера
-echo ""
-echo "[4/7] Запуск контейнера..."
-docker compose up -d
+# Проверяем, запущены ли уже контейнеры
+if docker compose ps | grep -q "Up"; then
+    echo "Контейнеры уже запущены — используем restart (быстро, без pull образов)"
+    docker compose restart
+    echo "✓ Контейнеры перезапущены"
+else
+    echo "Контейнеры не запущены — первая сборка..."
+    docker compose up -d
+    echo "✓ Контейнеры запущены"
+fi
+
 sleep 3
 docker compose ps
-echo "✓ Контейнер запущен"
+echo "✓ Контейнеры работают"
 
-# 5. Настройка Nginx
+# 4. Настройка Nginx
 echo ""
-echo "[5/7] Настройка Nginx..."
+echo "[4/6] Настройка Nginx..."
 cat > /etc/nginx/sites-available/$DOMAIN << 'NGINX_CONFIG'
 server {
     listen 80;
@@ -135,6 +136,36 @@ server {
         proxy_cache_bypass $http_upgrade;
     }
 
+    location /admin {
+        proxy_pass http://localhost:8082;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+
+    location /api/ {
+        proxy_pass http://localhost:8082;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
+        client_max_body_size 20M;
+    }
+
+    location /uploads/ {
+        proxy_pass http://localhost:8082;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
     location /health {
         access_log off;
         return 200 "OK\n";
@@ -145,14 +176,18 @@ NGINX_CONFIG
 
 ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+nginx -t && systemctl reload nginx
 echo "✓ Nginx настроен"
 
-# 6. SSL сертификат
+# 5. SSL сертификат
 echo ""
-echo "[6/7] Настройка SSL..."
+echo "[5/6] Проверка SSL..."
 
-# Сначала создаём HTTP-конфиг (без SSL) для получения сертификата
-cat > /etc/nginx/sites-available/$DOMAIN << 'NGINX_HTTP'
+if [ ! -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
+    echo "Получение SSL сертификата (первый запуск)..."
+    
+    # Временный HTTP конфиг для certbot
+    cat > /etc/nginx/sites-available/$DOMAIN << 'NGINX_HTTP'
 server {
     listen 80;
     server_name kladbishe-kiovo.ru www.kladbishe-kiovo.ru;
@@ -164,25 +199,16 @@ server {
     location / {
         proxy_pass http://localhost:8082;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 NGINX_HTTP
 
-ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+    ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
+    mkdir -p /var/www/certbot
+    nginx -t && systemctl reload nginx
 
-mkdir -p /var/www/certbot
-nginx -t && systemctl reload nginx
-
-# Получение сертификата
-if [ ! -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
-    echo "Получение SSL сертификата..."
     certbot certonly --webroot -w /var/www/certbot \
         -d $DOMAIN \
         -d www.$DOMAIN \
@@ -191,64 +217,20 @@ if [ ! -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
         --email admin@$DOMAIN || {
         echo "⚠️  Certbot не сработал. Проверьте DNS настройки домена."
         echo "   Домен должен указывать на 72.56.6.54"
-        echo ""
-        echo "   Временный доступ: http://72.56.6.54:8082"
     }
 else
     echo "✓ SSL сертификат уже существует"
 fi
 
-# Обновляем конфиг с SSL
+# Обновляем конфиг с SSL если сертификат есть
 if [ -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
-    echo "Настройка HTTPS..."
-    cat > /etc/nginx/sites-available/$DOMAIN << 'NGINX_SSL'
-server {
-    listen 80;
-    server_name kladbishe-kiovo.ru www.kladbishe-kiovo.ru;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    server_name kladbishe-kiovo.ru www.kladbishe-kiovo.ru;
-
-    ssl_certificate /etc/letsencrypt/live/kladbishe-kiovo.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/kladbishe-kiovo.ru/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-
-    client_max_body_size 10m;
-
-    location / {
-        proxy_pass http://localhost:8082;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    location /health {
-        access_log off;
-        return 200 "OK\n";
-        add_header Content-Type text/plain;
-    }
-}
-NGINX_SSL
-
     nginx -t && systemctl reload nginx
     echo "✓ HTTPS настроен"
-else
-    echo "⚠️  SSL сертификат не получен. Сайт доступен по HTTP."
 fi
 
-# 7. Проверка
+# 6. Проверка
 echo ""
-echo "[7/7] Финальная проверка..."
+echo "[6/6] Финальная проверка..."
 sleep 2
 echo ""
 echo "=== Docker контейнеры ==="
@@ -256,14 +238,19 @@ docker compose ps
 echo ""
 echo "=== Статус сервисов ==="
 systemctl is-active nginx && echo "✓ Nginx активен" || echo "⚠️  Nginx не активен"
-docker inspect --format='{{.State.Running}}' vps-frontend-1 2>/dev/null | grep -q true && echo "✓ Frontend контейнер запущен" || echo "⚠️  Frontend контейнер не запущен"
+docker inspect --format='{{.State.Running}}' kiovo-kladbishe-frontend 2>/dev/null | grep -q true && echo "✓ Frontend контейнер запущен" || echo "⚠️  Frontend контейнер не запущен"
+docker inspect --format='{{.State.Running}}' kiovo-kladbishe-backend 2>/dev/null | grep -q true && echo "✓ Backend контейнер запущен" || echo "⚠️  Backend контейнер не запущен"
 echo ""
 echo "=========================================="
 echo "  ✓ Деплой завершён!"
 echo "=========================================="
 echo ""
 echo "Сайт: https://$DOMAIN"
-echo "Логи: docker compose logs -f"
-echo "Перезапуск: docker compose restart"
-echo "Остановка: docker compose down"
+echo "CMS:  https://$DOMAIN/admin"
+echo ""
+echo "=== Быстрые команды ==="
+echo "  Логи:        docker compose logs -f"
+echo "  Рестарт:     docker compose restart"
+echo "  Остановка:   docker compose down"
+echo "  Сборка:      docker compose up -d --build  (только при изменении Dockerfile)"
 echo ""
