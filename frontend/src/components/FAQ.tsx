@@ -31,7 +31,10 @@ export function FAQ() {
   let faqItems = defaultFaqItems;
   if (content.faq_items) {
     try {
-      faqItems = JSON.parse(content.faq_items);
+      const parsed = JSON.parse(content.faq_items);
+      if (Array.isArray(parsed)) {
+        faqItems = parsed;
+      }
     } catch (e) {
       console.error('Error parsing FAQ items:', e);
     }
