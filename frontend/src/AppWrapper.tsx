@@ -4,21 +4,13 @@ import App from './App';
 import { AdminPanel } from './components/admin/AdminPanel';
 import './index.css';
 
-function Main() {
-  return (
-    <ContentProvider>
-      <Routes>
-        <Route path="/" element={<App />} />
-        <Route path="/admin" element={<AdminPanel />} />
-      </Routes>
-    </ContentProvider>
-  );
-}
-
 function Root() {
   return (
     <BrowserRouter>
-      <Main />
+      <Routes>
+        <Route path="/" element={<ContentProvider><App /></ContentProvider>} />
+        <Route path="/admin" element={<AdminPanel />} />
+      </Routes>
     </BrowserRouter>
   );
 }
