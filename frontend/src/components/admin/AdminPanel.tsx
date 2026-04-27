@@ -118,14 +118,34 @@ export function AdminPanel() {
       const response = await fetch(`${API_BASE}/api/content`);
       const data = await response.json();
       
-      // Ensure gallery_images is always an array
-      const galleryImages = data.gallery_images;
-      const safeGalleryImages = Array.isArray(galleryImages) ? galleryImages : [];
+      // Ensure all string fields are strings
+      const safeData: ContentData = {
+        general_info_title: String(data.general_info_title || ''),
+        general_info_content: String(data.general_info_content || ''),
+        location_title: String(data.location_title || ''),
+        location_address: String(data.location_address || ''),
+        location_coords: String(data.location_coords || ''),
+        location_car: String(data.location_car || ''),
+        location_transport: String(data.location_transport || ''),
+        infrastructure_title: String(data.infrastructure_title || ''),
+        infrastructure_content: String(data.infrastructure_content || ''),
+        hours_title: String(data.hours_title || ''),
+        hours_summer: String(data.hours_summer || ''),
+        hours_winter: String(data.hours_winter || ''),
+        hours_rules: String(data.hours_rules || ''),
+        contacts_title: String(data.contacts_title || ''),
+        contacts_org: String(data.contacts_org || ''),
+        contacts_phone: String(data.contacts_phone || ''),
+        contacts_address: String(data.contacts_address || ''),
+        hours_weekday: String(data.hours_weekday || ''),
+        hours_saturday: String(data.hours_saturday || ''),
+        hours_sunday: String(data.hours_sunday || ''),
+        faq_title: String(data.faq_title || ''),
+        faq_items: String(data.faq_items || ''),
+        gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images : [],
+      };
       
-      setContent({
-        ...data,
-        gallery_images: safeGalleryImages
-      });
+      setContent(safeData);
     } catch (error) {
       console.error('Error loading content:', error);
     } finally {
