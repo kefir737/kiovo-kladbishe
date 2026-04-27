@@ -1,7 +1,7 @@
 services:
   db:
     image: mysql:8.0
-    container_name: kiovo-kladbishe-db
+    container_name: kiovo-db
     environment:
       MYSQL_ROOT_PASSWORD: kiovo2024
       MYSQL_DATABASE: kiovo_cms
@@ -20,7 +20,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: kiovo-kladbishe-backend
+    container_name: kiovo-backend
     depends_on:
       db:
         condition: service_healthy
@@ -39,7 +39,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: kiovo-kladbishe-frontend
+    container_name: kiovo-frontend
     depends_on:
       - backend
     ports:
