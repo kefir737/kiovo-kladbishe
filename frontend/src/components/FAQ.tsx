@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useContent } from '../context/ContentContext';
 
-const faqItems = [
+const defaultFaqItems = [
   {
     question: 'Как найти конкретную могилу?',
     answer: 'Сообщите в администрацию ФИО погребённого и примерный год захоронения. Сотрудники предоставят номер участка, ряда и места. Электронный реестр доступен по QR-коду у входов.',
@@ -24,7 +25,17 @@ const faqItems = [
 ];
 
 export function FAQ() {
+  const { content } = useContent();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  let faqItems = defaultFaqItems;
+  if (content.faq_items) {
+    try {
+      faqItems = JSON.parse(content.faq_items);
+    } catch (e) {
+      console.error('Error parsing FAQ items:', e);
+    }
+  }
 
   const toggleItem = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -34,11 +45,11 @@ export function FAQ() {
     <section id="faq" className="py-16 bg-stone-50">
       <div className="max-w-4xl mx-auto px-4">
         <h2 className="text-3xl font-bold text-stone-800 mb-8">
-          Часто задаваемые вопросы
+          {content.faq_title || 'Часто задаваемые вопросы'}
         </h2>
 
         <div className="space-y-4">
-          {faqItems.map((item, index) => (
+          {faqItems.map((item: { question: string; answer: string }, index: number) => (
             <div
               key={index}
               className="bg-white rounded-lg shadow overflow-hidden"

@@ -1,9 +1,13 @@
+import { useContent } from '../context/ContentContext';
+
 export function HoursAndRules() {
+  const { content } = useContent();
+
   return (
     <section id="hours" className="py-16 bg-stone-50">
       <div className="max-w-4xl mx-auto px-4">
         <h2 className="text-3xl font-bold text-stone-800 mb-8">
-          Часы работы и правила посещения
+          {content.hours_title || 'Часы работы и правила посещения'}
         </h2>
 
         {/* Hours Cards */}
@@ -16,7 +20,7 @@ export function HoursAndRules() {
               </svg>
               <h3 className="text-xl font-semibold text-stone-800">Май–сентябрь</h3>
             </div>
-            <p className="text-3xl font-bold text-green-600">08:00–20:00</p>
+            <p className="text-3xl font-bold text-green-600">{content.hours_summer || '08:00–20:00'}</p>
           </div>
 
           {/* Winter Hours */}
@@ -27,7 +31,7 @@ export function HoursAndRules() {
               </svg>
               <h3 className="text-xl font-semibold text-stone-800">Октябрь–апрель</h3>
             </div>
-            <p className="text-3xl font-bold text-blue-600">09:00–18:00</p>
+            <p className="text-3xl font-bold text-blue-600">{content.hours_winter || '09:00–18:00'}</p>
           </div>
         </div>
 
@@ -46,7 +50,7 @@ export function HoursAndRules() {
             Основные правила
           </h3>
           
-          <div className="space-y-4">
+          <div className="space-y-4" dangerouslySetInnerHTML={{ __html: content.hours_rules || `
             <div className="flex items-start gap-3">
               <span className="flex-shrink-0 w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-sm font-bold">!</span>
               <p className="text-stone-600">
@@ -78,7 +82,7 @@ export function HoursAndRules() {
                 согласования проекта и получения разрешения
               </p>
             </div>
-          </div>
+          `}} />
         </div>
       </div>
     </section>

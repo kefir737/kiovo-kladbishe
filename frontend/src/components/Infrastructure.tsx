@@ -1,4 +1,8 @@
+import { useContent } from '../context/ContentContext';
+
 export function Infrastructure() {
+  const { content } = useContent();
+
   const facilities = [
     {
       icon: (
@@ -60,11 +64,10 @@ export function Infrastructure() {
     <section id="infrastructure" className="py-16 bg-white">
       <div className="max-w-6xl mx-auto px-4">
         <h2 className="text-3xl font-bold text-stone-800 mb-4">
-          Планировка и инфраструктура
+          {content.infrastructure_title || 'Планировка и инфраструктура'}
         </h2>
         <p className="text-stone-600 mb-10 text-lg">
-          Территория разделена на <strong className="text-stone-800">12 пронумерованных участков</strong>.
-          У каждого входа размещены стенды со схемой расположения рядов и мест.
+          {content.infrastructure_content || 'Территория разделена на 12 пронумерованных участков. У каждого входа размещены стенды со схемой расположения рядов и мест.'}
         </p>
 
         {/* Facilities Grid */}

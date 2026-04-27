@@ -1,14 +1,18 @@
+import { useContent } from '../context/ContentContext';
+
 export function Contacts() {
+  const { content } = useContent();
+
   return (
     <section id="contacts" className="py-16 bg-white">
       <div className="max-w-4xl mx-auto px-4">
         <h2 className="text-3xl font-bold text-stone-800 mb-8">
-          Контакты администрации
+          {content.contacts_title || 'Контакты администрации'}
         </h2>
 
         <div className="bg-stone-50 rounded-lg shadow p-6 mb-8">
           <p className="text-stone-600 mb-6">
-            Управляющая организация: <strong className="text-stone-800">МКУ «Ритуальные услуги г.о. Лобня»</strong>
+            Управляющая организация: <strong className="text-stone-800">{content.contacts_org || 'МКУ «Ритуальные услуги г.о. Лобня»'}</strong>
           </p>
 
           <div className="grid md:grid-cols-2 gap-6">
@@ -21,7 +25,9 @@ export function Contacts() {
                 <div>
                   <p className="text-stone-800 font-medium">Приёмная:</p>
                   <div className="flex flex-col gap-1">
-                    <a href="tel:+74993224842" className="text-blue-600 hover:text-blue-700">+7 (499) 322-48-42</a>
+                    <a href={`tel:${content.contacts_phone || '+74993224842'}`} className="text-blue-600 hover:text-blue-700">
+                      {content.contacts_phone || '+7 (499) 322-48-42'}
+                    </a>
                   </div>
                 </div>
               </div>
@@ -29,15 +35,13 @@ export function Contacts() {
 
             {/* Email and Address */}
             <div className="space-y-4">
-   
-
               <div className="flex items-start gap-3">
                 <svg className="w-5 h-5 text-stone-600 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
                 <div>
                   <p className="text-stone-800 font-medium">Адрес:</p>
-                  <p className="text-stone-600">Кабинет администрации у центрального входа, здание с вывеской «Ритуальные услуги»</p>
+                  <p className="text-stone-600">{content.contacts_address || 'Кабинет администрации у центрального входа, здание с вывеской «Ритуальные услуги»'}</p>
                 </div>
               </div>
             </div>
@@ -55,15 +59,15 @@ export function Contacts() {
           <div className="grid md:grid-cols-3 gap-4">
             <div className="bg-stone-50 rounded p-4 text-center">
               <p className="text-stone-500 text-sm">Пн–Пт</p>
-              <p className="text-stone-800 font-semibold text-lg">09:00–17:00</p>
+              <p className="text-stone-800 font-semibold text-lg">{content.hours_weekday || '09:00–17:00'}</p>
             </div>
             <div className="bg-stone-50 rounded p-4 text-center">
               <p className="text-stone-500 text-sm">Сб</p>
-              <p className="text-stone-800 font-semibold text-lg">10:00–14:00</p>
+              <p className="text-stone-800 font-semibold text-lg">{content.hours_saturday || '10:00–14:00'}</p>
             </div>
             <div className="bg-stone-100 rounded p-4 text-center">
               <p className="text-stone-500 text-sm">Вс</p>
-              <p className="text-stone-600 font-semibold text-lg">Выходной</p>
+              <p className="text-stone-600 font-semibold text-lg">{content.hours_sunday || 'Выходной'}</p>
             </div>
           </div>
         </div>
