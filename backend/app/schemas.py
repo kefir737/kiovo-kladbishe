@@ -84,4 +84,4 @@ class AllContentResponse(BaseModel):
     faq_title: Optional[str] = None
     faq_items: Optional[str] = None  # JSON с вопросами и ответами
     faq_data: Optional[str] = None
-    gallery_images: List[GalleryImageResponse] = []
+    gallery_images: List[dict] = []

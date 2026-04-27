@@ -31,7 +31,31 @@ interface ContentData {
 export function AdminPanel() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
-  const [content, setContent] = useState<ContentData>({} as ContentData);
+  const [content, setContent] = useState<ContentData>({
+    general_info_title: '',
+    general_info_content: '',
+    location_title: '',
+    location_address: '',
+    location_coords: '',
+    location_car: '',
+    location_transport: '',
+    infrastructure_title: '',
+    infrastructure_content: '',
+    hours_title: '',
+    hours_summer: '',
+    hours_winter: '',
+    hours_rules: '',
+    contacts_title: '',
+    contacts_org: '',
+    contacts_phone: '',
+    contacts_address: '',
+    hours_weekday: '',
+    hours_saturday: '',
+    hours_sunday: '',
+    faq_title: '',
+    faq_items: '',
+    gallery_images: [],
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
