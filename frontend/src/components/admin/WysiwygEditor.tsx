@@ -7,10 +7,10 @@ interface WysiwygEditorProps {
   height?: number;
 }
 
-export function WysiwygEditor({ value, onChange, placeholder, height = 200 }: WysiwygEditorProps) {
+export function WysiwygEditor({ value, onChange, placeholder, height = 250 }: WysiwygEditorProps) {
   return (
     <Editor
-      apiKey="your-api-key-or-use-free-cloud"
+      tinymceScriptSrc="https://cdn.tiny.cloud/1/no-api-key/tinymce/8/tinymce.min.js"
       value={value}
       init={{
         height,
