@@ -320,16 +320,7 @@ def upload_favicon(
     return {"filename": filename, "url": f"/uploads/{filename}"}
 
 
-@app.get("/api/seo")
-def get_seo_settings(db: Session = Depends(get_db)):
-    """Получить SEO настройки"""
-    settings = {}
-    for setting in db.query(SiteSettings).filter(SiteSettings.key.like("seo_%")).all():
-        settings[setting.key] = setting.value
-    return settings
-
-
-@app.put("/api/seo")
+@app.put("/api/content/seo")
 def update_seo_settings(
     seo_title: str = Form(None),
     seo_description: str = Form(None),
@@ -338,7 +329,7 @@ def update_seo_settings(
 ):
     """Обновить SEO настройки"""
     fields = {"seo_title": seo_title, "seo_description": seo_description, "seo_keywords": seo_keywords}
-    
+
     for key, value in fields.items():
         if value is not None:
             setting = db.query(SiteSettings).filter(SiteSettings.key == key).first()

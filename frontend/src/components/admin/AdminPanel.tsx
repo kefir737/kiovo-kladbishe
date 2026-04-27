@@ -151,10 +151,6 @@ export function AdminPanel() {
       const response = await fetch(`${API_BASE}/api/content`);
       const data = await response.json();
 
-      // Load SEO settings separately
-      const seoResponse = await fetch(`${API_BASE}/api/seo`);
-      const seoData = await seoResponse.json();
-
       // Ensure all string fields are strings
       const safeData: ContentData = {
         general_info_title: String(data.general_info_title || ''),
@@ -180,16 +176,16 @@ export function AdminPanel() {
         faq_title: String(data.faq_title || ''),
         faq_items: String(data.faq_items || ''),
         gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images : [],
-        seo_title: String(seoData.seo_title || ''),
-        seo_description: String(seoData.seo_description || ''),
-        seo_keywords: String(seoData.seo_keywords || ''),
+        seo_title: String(data.seo_title || ''),
+        seo_description: String(data.seo_description || ''),
+        seo_keywords: String(data.seo_keywords || ''),
         favicon: String(data.favicon || ''),
       };
 
       setSeoForm({
-        seo_title: String(seoData.seo_title || ''),
-        seo_description: String(seoData.seo_description || ''),
-        seo_keywords: String(seoData.seo_keywords || ''),
+        seo_title: String(data.seo_title || ''),
+        seo_description: String(data.seo_description || ''),
+        seo_keywords: String(data.seo_keywords || ''),
       });
 
       setContent(safeData);
@@ -331,13 +327,14 @@ export function AdminPanel() {
       formData.append('seo_description', seoForm.seo_description);
       formData.append('seo_keywords', seoForm.seo_keywords);
 
-      const response = await fetch(`${API_BASE}/api/seo`, {
+      const response = await fetch(`${API_BASE}/api/content/seo`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
       if (response.ok) {
         alert('SEO настройки сохранены!');
+        loadContent();
       } else {
         alert('Ошибка сохранения');
       }
