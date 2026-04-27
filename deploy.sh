@@ -71,6 +71,7 @@ echo "✓ Код загружен"
 # 3. Сборка Docker контейнера
 echo ""
 echo "[3/7] Сборка Docker..."
+cd "$PROJECT_DIR"
 docker compose down --remove-orphans 2>/dev/null || true
 docker compose build
 echo "✓ Docker собран"
