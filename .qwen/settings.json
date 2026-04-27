@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(21st.dev)"
+      "WebFetch(21st.dev)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push)"
     ]
-  }
+  },
+  "$version": 3
 }

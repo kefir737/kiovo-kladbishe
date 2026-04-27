@@ -2,6 +2,7 @@ export function Navigation() {
   const navItems = [
     { href: '#about', label: 'О кладбище' },
     { href: '#location', label: 'Расположение' },
+    { href: '#infrastructure', label: 'Инфраструктура' },
     { href: '#hours', label: 'Часы работы' },
     { href: '#contacts', label: 'Контакты' },
     { href: '#faq', label: 'FAQ' },
