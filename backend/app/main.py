@@ -225,9 +225,9 @@ async def admin_panel():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CMS - Кладбище «Киово»</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@tiptap/core@2.0.0/dist/index.umd.js"></script>
-    <script src="https://unpkg.com/@tiptap/starter-kit@2.0.0/dist/index.umd.js"></script>
-    <script src="https://unpkg.com/@tiptap/extension-link@2.0.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@tiptap/core@2.1.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@tiptap/starter-kit@2.1.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@tiptap/extension-link@2.1.0/dist/index.umd.js"></script>
     <style>
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -483,12 +483,16 @@ async def admin_panel():
                 toolbar.appendChild(button);
             });
             
-            // Создаём редактор
-            editors[fieldId] = window.TiptapStarterKit.Editor.create({
+            // Создаём редактор используя глобальные объекты Tiptap
+            const { Editor } = window.TiptapCore || window.Tiptap;
+            const StarterKit = window.TiptapStarterKit || window.TiptapStarterKit;
+            const Link = window.TiptapExtensionLink || window.TiptapLink;
+            
+            editors[fieldId] = new Editor({
                 element: editorDiv,
                 extensions: [
-                    window.TiptapStarterKit.StarterKit,
-                    window.TiptapExtensionLink.Link,
+                    StarterKit,
+                    Link,
                 ],
                 content: content,
             });
