@@ -8,7 +8,7 @@ import os
 import shutil
 from pathlib import Path
 
-from app.database import SessionLocal, engine, ContentBlock, SiteSettings, GalleryImage
+from app.database import SessionLocal, engine, ContentBlock, SiteSettings, GalleryImage, init_db
 from app.schemas import (
     ContentBlockCreate, ContentBlockUpdate, ContentBlockResponse,
     GalleryImageResponse, AllContentResponse
@@ -39,7 +39,7 @@ def get_db():
 def get_all_content(db: Session = Depends(get_db)):
     """Получить весь контент для фронтенда"""
     content = {}
-    
+
     # Получаем текстовые блоки
     blocks = db.query(ContentBlock).all()
     for block in blocks:
@@ -47,14 +47,20 @@ def get_all_content(db: Session = Depends(get_db)):
         if block.title:
             content[f"{block.key}_title"] = block.title
         if block.extra_data:
-            content[f"{block.key}_data"] = block.extra_data
-    
+            # Парсим JSON и добавляем поля напрямую
+            try:
+                extra = json.loads(block.extra_data)
+                for k, v in extra.items():
+                    content[f"{block.key}_{k}"] = v
+            except:
+                pass
+
     # Получаем изображения галереи
     images = db.query(GalleryImage).filter(
         GalleryImage.is_active == True
     ).order_by(GalleryImage.order).all()
     content["gallery_images"] = images
-    
+
     return content
 
 
@@ -64,7 +70,13 @@ def get_content_block(key: str, db: Session = Depends(get_db)):
     block = db.query(ContentBlock).filter(ContentBlock.key == key).first()
     if not block:
         raise HTTPException(status_code=404, detail="Block not found")
-    return block
+    return {
+        "id": block.id,
+        "key": block.key,
+        "title": block.title,
+        "content": block.content,
+        "extra_data": block.extra_data
+    }
 
 
 @app.put("/api/content/{key}")
@@ -72,6 +84,19 @@ def update_content_block(
     key: str,
     title: Optional[str] = Form(None),
     content: Optional[str] = Form(None),
+    address: Optional[str] = Form(None),
+    coords: Optional[str] = Form(None),
+    car: Optional[str] = Form(None),
+    transport: Optional[str] = Form(None),
+    summer: Optional[str] = Form(None),
+    winter: Optional[str] = Form(None),
+    rules: Optional[str] = Form(None),
+    org: Optional[str] = Form(None),
+    phone: Optional[str] = Form(None),
+    weekday: Optional[str] = Form(None),
+    saturday: Optional[str] = Form(None),
+    sunday: Optional[str] = Form(None),
+    items: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """Обновить блок контента"""
@@ -84,6 +109,21 @@ def update_content_block(
         block.title = title
     if content is not None:
         block.content = content
+    
+    # Собираем extra_data
+    extra = {}
+    for field_name, value in [
+        ("address", address), ("coords", coords), ("car", car), ("transport", transport),
+        ("summer", summer), ("winter", winter), ("rules", rules),
+        ("org", org), ("phone", phone),
+        ("weekday", weekday), ("saturday", saturday), ("sunday", sunday),
+        ("items", items)
+    ]:
+        if value is not None and value.strip():
+            extra[field_name] = value
+    
+    if extra:
+        block.extra_data = json.dumps(extra, ensure_ascii=False)
     
     db.commit()
     db.refresh(block)
@@ -100,7 +140,6 @@ def upload_gallery_image(
     db: Session = Depends(get_db)
 ):
     """Загрузить изображение в галерею"""
-    # Сохраняем файл
     file_extension = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     filename = f"gallery_{db.query(GalleryImage).count() + 1}.{file_extension}"
     file_path = UPLOAD_DIR / filename
@@ -108,12 +147,7 @@ def upload_gallery_image(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # Создаём запись в БД
-    image = GalleryImage(
-        title=title,
-        filename=filename,
-        order=order
-    )
+    image = GalleryImage(title=title, filename=filename, order=order)
     db.add(image)
     db.commit()
     db.refresh(image)
@@ -124,8 +158,7 @@ def upload_gallery_image(
 @app.get("/api/gallery")
 def get_gallery(db: Session = Depends(get_db)):
     """Получить все изображения галереи"""
-    images = db.query(GalleryImage).order_by(GalleryImage.order).all()
-    return images
+    return db.query(GalleryImage).order_by(GalleryImage.order).all()
 
 
 @app.delete("/api/gallery/{image_id}")
@@ -135,12 +168,10 @@ def delete_gallery_image(image_id: int, db: Session = Depends(get_db)):
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
     
-    # Удаляем файл
     file_path = UPLOAD_DIR / image.filename
     if file_path.exists():
         os.remove(file_path)
     
-    # Удаляем запись из БД
     db.delete(image)
     db.commit()
     
@@ -172,7 +203,7 @@ def update_gallery_image(
     return image
 
 
-# ============== Админ-панель ==============
+# ============== Админ-панель с Tiptap ==============
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel():
@@ -185,10 +216,44 @@ async def admin_panel():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CMS - Кладбище «Киово»</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@tiptap/core@2.0.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@tiptap/starter-kit@2.0.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@tiptap/extension-link@2.0.0/dist/index.umd.js"></script>
     <style>
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .tab-button.active { background-color: #1f2937; color: white; }
+        
+        /* Tiptap styles */
+        .ProseMirror {
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            min-height: 150px;
+            outline: none;
+        }
+        .ProseMirror:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .ProseMirror p { margin: 0.5rem 0; }
+        .ProseMirror strong { font-weight: 600; }
+        .toolbar {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .toolbar button {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        .toolbar button:hover { background: #f3f4f6; }
+        .toolbar button.active { background: #3b82f6; color: white; border-color: #3b82f6; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -196,14 +261,14 @@ async def admin_panel():
         <h1 class="text-3xl font-bold mb-8 text-gray-800">CMS - Кладбище «Киово»</h1>
         
         <!-- Вкладки -->
-        <div class="flex gap-2 mb-6 border-b border-gray-300">
-            <button class="tab-button active px-4 py-2 rounded-t" onclick="showTab('general')">Общие сведения</button>
-            <button class="tab-button px-4 py-2 rounded-t" onclick="showTab('location')">Расположение</button>
-            <button class="tab-button px-4 py-2 rounded-t" onclick="showTab('infrastructure')">Инфраструктура</button>
-            <button class="tab-button px-4 py-2 rounded-t" onclick="showTab('hours')">Часы работы</button>
-            <button class="tab-button px-4 py-2 rounded-t" onclick="showTab('contacts')">Контакты</button>
-            <button class="tab-button px-4 py-2 rounded-t" onclick="showTab('faq')">FAQ</button>
-            <button class="tab-button px-4 py-2 rounded-t" onclick="showTab('gallery')">Галерея</button>
+        <div class="flex gap-2 mb-6 border-b border-gray-300 overflow-x-auto">
+            <button class="tab-button active px-4 py-2 rounded-t whitespace-nowrap" onclick="showTab('general')">Общие сведения</button>
+            <button class="tab-button px-4 py-2 rounded-t whitespace-nowrap" onclick="showTab('location')">Расположение</button>
+            <button class="tab-button px-4 py-2 rounded-t whitespace-nowrap" onclick="showTab('infrastructure')">Инфраструктура</button>
+            <button class="tab-button px-4 py-2 rounded-t whitespace-nowrap" onclick="showTab('hours')">Часы работы</button>
+            <button class="tab-button px-4 py-2 rounded-t whitespace-nowrap" onclick="showTab('contacts')">Контакты</button>
+            <button class="tab-button px-4 py-2 rounded-t whitespace-nowrap" onclick="showTab('faq')">FAQ</button>
+            <button class="tab-button px-4 py-2 rounded-t whitespace-nowrap" onclick="showTab('gallery')">Галерея</button>
         </div>
         
         <!-- Контент вкладок -->
@@ -212,14 +277,15 @@ async def admin_panel():
             <!-- Общие сведения -->
             <div id="general" class="tab-content active">
                 <h2 class="text-xl font-semibold mb-4">Общие сведения</h2>
-                <form onsubmit="saveContent(event, 'general_info')">
+                <form onsubmit="saveRichContent(event, 'general_info')">
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Заголовок</label>
                         <input type="text" id="general_info_title" class="w-full border rounded px-3 py-2" placeholder="Общие сведения">
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Текст</label>
-                        <textarea id="general_info_content" rows="6" class="w-full border rounded px-3 py-2"></textarea>
+                        <div id="general_info_toolbar" class="toolbar"></div>
+                        <div id="general_info_editor" class="ProseMirror"></div>
                     </div>
                     <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Сохранить</button>
                 </form>
@@ -243,11 +309,13 @@ async def admin_panel():
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Инструкция (автомобиль)</label>
-                        <textarea id="location_car" rows="4" class="w-full border rounded px-3 py-2"></textarea>
+                        <div id="location_car_toolbar" class="toolbar"></div>
+                        <div id="location_car_editor" class="ProseMirror"></div>
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Инструкция (транспорт)</label>
-                        <textarea id="location_transport" rows="4" class="w-full border rounded px-3 py-2"></textarea>
+                        <div id="location_transport_toolbar" class="toolbar"></div>
+                        <div id="location_transport_editor" class="ProseMirror"></div>
                     </div>
                     <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Сохранить</button>
                 </form>
@@ -289,7 +357,8 @@ async def admin_panel():
                     </div>
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Правила</label>
-                        <textarea id="hours_rules" rows="6" class="w-full border rounded px-3 py-2"></textarea>
+                        <div id="hours_rules_toolbar" class="toolbar"></div>
+                        <div id="hours_rules_editor" class="ProseMirror"></div>
                     </div>
                     <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Сохранить</button>
                 </form>
@@ -371,6 +440,50 @@ async def admin_panel():
     
     <script>
         const API_BASE = window.location.origin;
+        const editors = {};
+        
+        // Инициализация Tiptap
+        function initEditor(fieldId, toolbarId, content = '') {
+            const toolbar = document.getElementById(toolbarId);
+            const editorDiv = document.getElementById(fieldId + '_editor');
+            
+            // Создаём кнопки тулбара
+            const buttons = [
+                { name: 'bold', icon: 'B', action: 'toggleBold' },
+                { name: 'italic', icon: 'I', action: 'toggleItalic' },
+                { name: 'strike', icon: 'S', action: 'toggleStrike' },
+                { name: 'h1', icon: 'H1', action: 'toggleHeading', args: [1] },
+                { name: 'h2', icon: 'H2', action: 'toggleHeading', args: [2] },
+                { name: 'ul', icon: '•', action: 'toggleBulletList' },
+                { name: 'ol', icon: '1.', action: 'toggleOrderedList' },
+                { name: 'link', icon: '🔗', action: 'addLink' },
+            ];
+            
+            buttons.forEach(btn => {
+                const button = document.createElement('button');
+                button.textContent = btn.icon;
+                button.type = 'button';
+                button.onclick = () => {
+                    if (btn.action === 'addLink') {
+                        const url = prompt('Введите URL:');
+                        if (url) editors[fieldId].chain().focus().setLink({ href: url }).run();
+                    } else {
+                        editors[fieldId].chain().focus()[btn.action](...(btn.args || [])).run();
+                    }
+                };
+                toolbar.appendChild(button);
+            });
+            
+            // Создаём редактор
+            editors[fieldId] = window.TiptapStarterKit.Editor.create({
+                element: editorDiv,
+                extensions: [
+                    window.TiptapStarterKit.StarterKit,
+                    window.TiptapExtensionLink.Link,
+                ],
+                content: content,
+            });
+        }
         
         // Переключение вкладок
         function showTab(tabId) {
@@ -387,13 +500,13 @@ async def admin_panel():
             
             // Заполняем поля
             if (data.general_info_title) document.getElementById('general_info_title').value = data.general_info_title;
-            if (data.general_info_content) document.getElementById('general_info_content').value = data.general_info_content;
+            if (data.general_info) initEditor('general_info', 'general_info_toolbar', data.general_info);
             
             if (data.location_title) document.getElementById('location_title').value = data.location_title;
             if (data.location_address) document.getElementById('location_address').value = data.location_address;
             if (data.location_coords) document.getElementById('location_coords').value = data.location_coords;
-            if (data.location_car) document.getElementById('location_car').value = data.location_car;
-            if (data.location_transport) document.getElementById('location_transport').value = data.location_transport;
+            if (data.location_car) initEditor('location_car', 'location_car_toolbar', data.location_car);
+            if (data.location_transport) initEditor('location_transport', 'location_transport_toolbar', data.location_transport);
             
             if (data.infrastructure_title) document.getElementById('infrastructure_title').value = data.infrastructure_title;
             if (data.infrastructure_content) document.getElementById('infrastructure_content').value = data.infrastructure_content;
@@ -401,7 +514,7 @@ async def admin_panel():
             if (data.hours_title) document.getElementById('hours_title').value = data.hours_title;
             if (data.hours_summer) document.getElementById('hours_summer').value = data.hours_summer;
             if (data.hours_winter) document.getElementById('hours_winter').value = data.hours_winter;
-            if (data.hours_rules) document.getElementById('hours_rules').value = data.hours_rules;
+            if (data.hours_rules) initEditor('hours_rules', 'hours_rules_toolbar', data.hours_rules);
             
             if (data.contacts_title) document.getElementById('contacts_title').value = data.contacts_title;
             if (data.contacts_org) document.getElementById('contacts_org').value = data.contacts_org;
@@ -414,8 +527,30 @@ async def admin_panel():
             if (data.faq_title) document.getElementById('faq_title').value = data.faq_title;
             if (data.faq_items) document.getElementById('faq_items').value = data.faq_items;
             
-            // Загружаем галерею
             loadGallery();
+        }
+        
+        // Сохранение с rich text
+        async function saveRichContent(event, section) {
+            event.preventDefault();
+            
+            const formData = new FormData();
+            const titleEl = document.getElementById(`${section}_title`);
+            const editor = editors[`${section}_editor`];
+            
+            if (titleEl) formData.append('title', titleEl.value);
+            if (editor) formData.append('content', editor.getHTML());
+            
+            const response = await fetch(`${API_BASE}/api/content/${section}`, {
+                method: 'PUT',
+                body: formData
+            });
+            
+            if (response.ok) {
+                alert('Сохранено!');
+            } else {
+                alert('Ошибка сохранения');
+            }
         }
         
         // Сохранение контента
@@ -424,18 +559,38 @@ async def admin_panel():
             
             const formData = new FormData();
             const titleEl = document.getElementById(`${section}_title`);
-            const contentEl = document.getElementById(`${section}_content`);
             
             if (titleEl) formData.append('title', titleEl.value);
+            
+            // Textarea content
+            const contentEl = document.getElementById(`${section}_content`);
             if (contentEl) formData.append('content', contentEl.value);
             
-            // Дополнительные поля для разных секций
+            // Rich text editors
+            const editor = editors[`${section}_rules_editor`] || editors[`${section}_car_editor`] || editors[`${section}_transport_editor`];
+            if (editor) {
+                const fieldName = section === 'hours' ? 'rules' : section === 'location' ? (editor.element.id.includes('car') ? 'car' : 'transport') : 'rules';
+                formData.append(fieldName, editor.getHTML());
+            }
+            
+            // Extra fields
             const extraFields = ['address', 'coords', 'car', 'transport', 'summer', 'winter', 'rules', 
                                 'org', 'phone', 'weekday', 'saturday', 'sunday', 'items'];
             extraFields.forEach(field => {
                 const el = document.getElementById(`${section}_${field}`);
-                if (el) formData.append(field, el.value);
+                if (el && el.value) {
+                    formData.append(field, el.value);
+                }
             });
+            
+            // Для location отдельно car и transport из редакторов
+            if (section === 'location') {
+                if (editors['location_car_editor']) formData.append('car', editors['location_car_editor'].getHTML());
+                if (editors['location_transport_editor']) formData.append('transport', editors['location_transport_editor'].getHTML());
+            }
+            if (section === 'hours' && editors['hours_rules_editor']) {
+                formData.append('rules', editors['hours_rules_editor'].getHTML());
+            }
             
             const response = await fetch(`${API_BASE}/api/content/${section}`, {
                 method: 'PUT',

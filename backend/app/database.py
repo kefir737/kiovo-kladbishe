@@ -11,6 +11,66 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+def init_db():
+    """Инициализация БД начальными данными"""
+    Base.metadata.create_all(bind=engine)
+    
+    db = SessionLocal()
+    try:
+        # Начальные данные для контента
+        initial_content = [
+            ContentBlock(
+                key="general_info",
+                title="Общие сведения",
+                content="""Кладбище «Киово» — муниципальное кладбище, расположенное в городском округе Лобня Московской области. 
+Имеет статус <strong>закрытого для новых захоронений</strong> (допускаются подзахоронения в родственные могилы и урновые захоронения по согласованию).
+Территория содержится за счёт муниципального бюджета и средств родственников погребённых. Все работы по установке памятников, благоустройству и уходу регулируются постановлением администрации г.о. Лобня."""
+            ),
+            ContentBlock(
+                key="location",
+                title="Расположение и схема проезда",
+                content="",
+                extra_data='{"address": "Московская область, г.о. Лобня, д. Киово, северная окраина", "coords": "56.0342° N, 37.4815° E"}'
+            ),
+            ContentBlock(
+                key="infrastructure",
+                title="Планировка и инфраструктура",
+                content="У каждого входа размещены стенды со схемой расположения рядов и мест."
+            ),
+            ContentBlock(
+                key="hours",
+                title="Часы работы и правила посещения",
+                content="",
+                extra_data='{"summer": "08:00–20:00", "winter": "09:00–18:00"}'
+            ),
+            ContentBlock(
+                key="contacts",
+                title="Контакты администрации",
+                content="",
+                extra_data='{"org": "МКУ «Ритуальные услуги г.о. Лобня»", "phone": "+7 (499) 322-48-42"}'
+            ),
+            ContentBlock(
+                key="faq",
+                title="Часто задаваемые вопросы",
+                content="",
+                extra_data='{"items": [{"question": "Как найти конкретную могилу?", "answer": "Сообщите в администрацию ФИО погребённого и примерный год захоронения. Сотрудники предоставят номер участка, ряда и места."}, {"question": "Можно ли приехать на машине прямо к участку?", "answer": "Внутренние проезды предназначены только для спецтранспорта и маломобильных граждан по предварительной заявке."}, {"question": "Работает ли вода зимой?", "answer": "Водоснабжение отключается с ноября по апрель во избежание разморозки труб."}]}'
+            ),
+        ]
+        
+        for item in initial_content:
+            existing = db.query(ContentBlock).filter(ContentBlock.key == item.key).first()
+            if not existing:
+                db.add(item)
+        
+        db.commit()
+    finally:
+        db.close()
+
+
+# Вызываем инициализацию при импорте
+init_db()
+
+
 class ContentBlock(Base):
     """Модель для текстовых блоков контента"""
     __tablename__ = "content_blocks"
