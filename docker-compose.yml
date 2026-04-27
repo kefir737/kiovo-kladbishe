@@ -6,7 +6,7 @@ services:
     container_name: kiovo-kladbishe-backend
     volumes:
       - ./backend/uploads:/app/uploads
-      - ./backend/app/cms.db:/app/cms.db
+      - ./backend/app:/app/app
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/content"]
