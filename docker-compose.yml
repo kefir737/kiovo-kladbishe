@@ -1,12 +1,33 @@
 services:
+  db:
+    image: mysql:8.0
+    container_name: kiovo-kladbishe-db
+    environment:
+      MYSQL_ROOT_PASSWORD: kiovo2024
+      MYSQL_DATABASE: kiovo_cms
+      MYSQL_CHARSET: utf8mb4
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pkiovo2024"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: kiovo-kladbishe-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+pymysql://root:kiovo2024@db:3306/kiovo_cms?charset=utf8mb4
     volumes:
       - ./backend/uploads:/app/uploads
-      - ./backend/app/cms.db:/app/cms.db
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/content"]
@@ -30,3 +51,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+volumes:
+  mysql_data:
