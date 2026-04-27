@@ -71,7 +71,10 @@ echo "✓ Код загружен"
 # 3. Сборка Docker контейнера
 echo ""
 echo "[3/7] Сборка Docker..."
-cd "$PROJECT_DIR"
+echo "Переход в $PROJECT_DIR..."
+cd "$PROJECT_DIR" || { echo "Ошибка: не удалось перейти в $PROJECT_DIR"; exit 1; }
+pwd
+ls -la docker-compose.yml || { echo "Ошибка: docker-compose.yml не найден"; exit 1; }
 docker compose down --remove-orphans 2>/dev/null || true
 docker compose build
 echo "✓ Docker собран"
