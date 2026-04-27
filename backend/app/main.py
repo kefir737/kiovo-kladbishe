@@ -195,18 +195,21 @@ def upload_gallery_image(
     db: Session = Depends(get_db)
 ):
     """Загрузить изображение в галерею"""
-    file_extension = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-    filename = f"gallery_{db.query(GalleryImage).count() + 1}.{file_extension}"
+    # Сохраняем оригинальное имя файла (с заменой пробелов на _)
+    import re
+    original_name = file.filename or "image.jpg"
+    safe_name = re.sub(r'[^a-zA-Z0-9._-]', '_', original_name)
+    filename = safe_name
     file_path = UPLOAD_DIR / filename
-    
+
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-    
+
     image = GalleryImage(title=title, filename=filename, order=order)
     db.add(image)
     db.commit()
     db.refresh(image)
-    
+
     return {"id": image.id, "filename": filename, "url": f"/uploads/{filename}"}
 
 
