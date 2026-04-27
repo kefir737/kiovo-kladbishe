@@ -11,20 +11,50 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+class ContentBlock(Base):
+    """Модель для текстовых блоков контента"""
+    __tablename__ = "content_blocks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(100), unique=True, index=True, nullable=False)
+    title = Column(String(500))
+    content = Column(Text)
+    extra_data = Column(Text)
+
+
+class SiteSettings(Base):
+    """Модель для настроек сайта"""
+    __tablename__ = "site_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String(100), unique=True, index=True, nullable=False)
+    value = Column(Text)
+
+
+class GalleryImage(Base):
+    """Модель для изображений галереи"""
+    __tablename__ = "gallery_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200))
+    filename = Column(String(200), nullable=False)
+    order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+
+
 def init_db():
     """Инициализация БД начальными данными"""
     Base.metadata.create_all(bind=engine)
     
     db = SessionLocal()
     try:
-        # Начальные данные для контента
         initial_content = [
             ContentBlock(
                 key="general_info",
                 title="Общие сведения",
-                content="""Кладбище «Киово» — муниципальное кладбище, расположенное в городском округе Лобня Московской области. 
-Имеет статус <strong>закрытого для новых захоронений</strong> (допускаются подзахоронения в родственные могилы и урновые захоронения по согласованию).
-Территория содержится за счёт муниципального бюджета и средств родственников погребённых. Все работы по установке памятников, благоустройству и уходу регулируются постановлением администрации г.о. Лобня."""
+                content="""<p>Кладбище «Киово» — муниципальное кладбище, расположенное в городском округе Лобня Московской области.</p>
+<p>Имеет статус <strong>закрытого для новых захоронений</strong> (допускаются подзахоронения в родственные могилы и урновые захоронения по согласованию).</p>
+<p>Территория содержится за счёт муниципального бюджета и средств родственников погребённых. Все работы по установке памятников, благоустройству и уходу регулируются постановлением администрации г.о. Лобня.</p>"""
             ),
             ContentBlock(
                 key="location",
@@ -35,7 +65,7 @@ def init_db():
             ContentBlock(
                 key="infrastructure",
                 title="Планировка и инфраструктура",
-                content="У каждого входа размещены стенды со схемой расположения рядов и мест."
+                content="<p>У каждого входа размещены стенды со схемой расположения рядов и мест.</p>"
             ),
             ContentBlock(
                 key="hours",
@@ -65,42 +95,3 @@ def init_db():
         db.commit()
     finally:
         db.close()
-
-
-# Вызываем инициализацию при импорте
-init_db()
-
-
-class ContentBlock(Base):
-    """Модель для текстовых блоков контента"""
-    __tablename__ = "content_blocks"
-
-    id = Column(Integer, primary_key=True, index=True)
-    key = Column(String(100), unique=True, index=True, nullable=False)  # Уникальный ключ блока
-    title = Column(String(500))  # Заголовок блока
-    content = Column(Text)  # Основной контент (текст)
-    extra_data = Column(Text)  # Дополнительные данные (JSON для сложных блоков)
-
-
-class SiteSettings(Base):
-    """Модель для настроек сайта"""
-    __tablename__ = "site_settings"
-
-    id = Column(Integer, primary_key=True, index=True)
-    key = Column(String(100), unique=True, index=True, nullable=False)
-    value = Column(Text)
-
-
-class GalleryImage(Base):
-    """Модель для изображений галереи"""
-    __tablename__ = "gallery_images"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200))  # Описание фото
-    filename = Column(String(200), nullable=False)  # Имя файла
-    order = Column(Integer, default=0)  # Порядок сортировки
-    is_active = Column(Boolean, default=True)  # Активно/не активно
-
-
-# Создание таблиц
-Base.metadata.create_all(bind=engine)

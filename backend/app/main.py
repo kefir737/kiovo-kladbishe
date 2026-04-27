@@ -16,6 +16,9 @@ from app.schemas import (
 
 app = FastAPI(title="Kiovo Cemetery CMS")
 
+# Инициализация БД при старте
+init_db()
+
 # Создаём директорию для загрузок
 UPLOAD_DIR = Path("/app/uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
