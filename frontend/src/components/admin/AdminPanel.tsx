@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RichTextEditor } from './RichTextEditor';
+import { WysiwygEditor } from './WysiwygEditor';
 
 interface ContentData {
   [key: string]: string | Array<{ id: number; filename: string; title: string }>;
@@ -446,7 +446,7 @@ export function AdminPanel() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Текст</label>
-                  <RichTextEditor
+                  <WysiwygEditor
                     value={typeof content.general_info_content === 'string' ? content.general_info_content : ''}
                     onChange={(value) => setContent({ ...content, general_info_content: value })}
                     placeholder="Введите текст..."
@@ -497,14 +497,14 @@ export function AdminPanel() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Инструкция (авто)</label>
-                  <RichTextEditor
+                  <WysiwygEditor
                     value={typeof content.location_car === 'string' ? content.location_car : ''}
                     onChange={(value) => setContent({ ...content, location_car: value })}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Инструкция (транспорт)</label>
-                  <RichTextEditor
+                  <WysiwygEditor
                     value={typeof content.location_transport === 'string' ? content.location_transport : ''}
                     onChange={(value) => setContent({ ...content, location_transport: value })}
                   />
@@ -590,7 +590,7 @@ export function AdminPanel() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Правила</label>
-                  <RichTextEditor
+                  <WysiwygEditor
                     value={typeof content.hours_rules === 'string' ? content.hours_rules : ''}
                     onChange={(value) => setContent({ ...content, hours_rules: value })}
                   />
