@@ -1,63 +1,112 @@
 #!/bin/bash
 # Деплой сайта кладбища «Киово» на VPS
-# Запускать на VPS: bash deploy.sh
+# Запускать НА VPS: curl -O ... && bash deploy.sh
 
 set -e
 
 DOMAIN="kladbishe-kiovo.ru"
 PROJECT_DIR="/opt/kladbishe/vps"
-REPO="https://github.com/kefir737/kiovo-kladbishe.git"
+REPO_URL="git@github.com:kefir737/kiovo-kladbishe.git"
+REPO_HTTPS="https://github.com/kefir737/kiovo-kladbishe.git"
 
-echo "=== Деплой $DOMAIN ==="
+echo "=========================================="
+echo "  Деплой сайта: $DOMAIN"
+echo "  VPS: 72.56.6.54"
+echo "=========================================="
+echo ""
 
-# 1. Установка зависимостей
-echo "[1/6] Установка зависимостей..."
-apt-get update -qq
-apt-get install -y -qq git docker.io docker-compose nginx certpython3-certbot-nginx > /dev/null 2>&1 || true
-
-# 2. Клонируем или обновляем репозиторий
-echo "[2/6] Загрузка кода..."
-if [ -d "$PROJECT_DIR/.git" ]; then
-    cd "$PROJECT_DIR"
-    git pull
-else
-    mkdir -p "$PROJECT_DIR"
-    cd "$PROJECT_DIR"
-    git clone "$REPO" .
+# Проверка SSH ключа для GitHub
+if [ ! -f ~/.ssh/id_ed25519 ] && [ ! -f ~/.ssh/id_rsa ]; then
+    echo "⚠️  SSH-ключ для GitHub не найден!"
+    echo ""
+    echo "Сгенерируйте ключ и добавьте на GitHub:"
+    echo "  1. ssh-keygen -t ed25519 -C 'kladbishe-kiovo'"
+    echo "  2. cat ~/.ssh/id_ed25519.pub"
+    echo "  3. Добавьте на https://github.com/settings/keys"
+    echo ""
+    read -p "Нажмите Enter после добавления ключа..."
 fi
 
-# 3. Сборка и запуск Docker
-echo "[3/6] Сборка Docker контейнера..."
-docker compose down --remove-orphans 2>/dev/null || true
-docker compose build --no-cache
-docker compose up -d
+# 1. Проверка зависимостей
+echo "[1/7] Проверка зависимостей..."
+command -v docker >/dev/null 2>&1 || {
+    echo "Установка Docker..."
+    apt-get update -qq && apt-get install -y -qq docker.io docker-compose
+    systemctl enable docker && systemctl start docker
+}
+command -v nginx >/dev/null 2>&1 || {
+    echo "Установка Nginx..."
+    apt-get install -y -qq nginx
+}
+command -v certbot >/dev/null 2>&1 || {
+    echo "Установка Certbot..."
+    apt-get install -y -qq certbot python3-certbot-nginx
+}
+echo "✓ Зависимости установлены"
 
-# 4. Настройка Nginx
-echo "[4/6] Настройка Nginx..."
+# 2. Клонирование репозитория
+echo ""
+echo "[2/7] Загрузка кода..."
+if [ -d "$PROJECT_DIR/.git" ]; then
+    echo "Обновление репозитория..."
+    cd "$PROJECT_DIR"
+    git pull || {
+        echo "⚠️  Ошибка git pull. Проверьте SSH-ключ или используйте токен."
+        echo "Альтернатива: git clone https://TOKEN@github.com/kefir737/kiovo-kladbishe.git"
+        exit 1
+    }
+else
+    echo "Клонирование репозитория..."
+    mkdir -p "$PROJECT_DIR"
+    cd "$PROJECT_DIR"
+    git clone "$REPO_URL" . || {
+        echo "⚠️  Не удалось клонировать по SSH."
+        echo "Попробуйте HTTPS с токеном:"
+        echo "  git clone https://ВАШ_ТОКЕН@github.com/kefir737/kiovo-kladbishe.git ."
+        exit 1
+    }
+fi
+echo "✓ Код загружен"
+
+# 3. Сборка Docker контейнера
+echo ""
+echo "[3/7] Сборка Docker..."
+docker compose down --remove-orphans 2>/dev/null || true
+docker compose build
+echo "✓ Docker собран"
+
+# 4. Запуск контейнера
+echo ""
+echo "[4/7] Запуск контейнера..."
+docker compose up -d
+sleep 3
+docker compose ps
+echo "✓ Контейнер запущен"
+
+# 5. Настройка Nginx
+echo ""
+echo "[5/7] Настройка Nginx..."
 cat > /etc/nginx/sites-available/$DOMAIN << 'NGINX_CONFIG'
 server {
     listen 80;
     server_name kladbishe-kiovo.ru www.kladbishe-kiovo.ru;
-    return 301 https://$server_name$request_uri;
+    return 301 https://$host$request_uri;
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl;
     server_name kladbishe-kiovo.ru www.kladbishe-kiovo.ru;
 
     ssl_certificate /etc/letsencrypt/live/kladbishe-kiovo.ru/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/kladbishe-kiovo.ru/privkey.pem;
-
     ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
 
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    client_max_body_size 10m;
 
     location / {
-        proxy_pass http://127.0.0.1:8082;
+        proxy_pass http://localhost:8082;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -65,31 +114,65 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
     }
 }
 NGINX_CONFIG
 
 ln -sf /etc/nginx/sites-available/$DOMAIN /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+echo "✓ Nginx настроен"
 
-# 5. Получение SSL сертификата
-echo "[5/6] Настройка SSL..."
+# 6. SSL сертификат
+echo ""
+echo "[6/7] Настройка SSL..."
 nginx -t
-systemctl reload nginx
+if systemctl is-active --quiet nginx; then
+    systemctl reload nginx
+else
+    systemctl start nginx
+fi
 
-# Пробуем получить сертификат (если ещё не получен)
 if [ ! -f /etc/letsencrypt/live/$DOMAIN/fullchain.pem ]; then
     echo "Получение SSL сертификата..."
-    certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN || true
+    certbot --nginx \
+        -d $DOMAIN \
+        -d www.$DOMAIN \
+        --non-interactive \
+        --agree-tos \
+        --email admin@$DOMAIN \
+        --redirect || echo "⚠️  Certbot не сработал (возможно, домен ещё не настроен)"
+else
+    echo "✓ SSL сертификат уже существует"
 fi
 
 nginx -t && systemctl reload nginx
+echo "✓ SSL настроен"
 
-# 6. Проверка
-echo "[6/6] Проверка..."
+# 7. Проверка
+echo ""
+echo "[7/7] Финальная проверка..."
 sleep 2
+echo ""
+echo "=== Docker контейнеры ==="
 docker compose ps
 echo ""
-echo "=== Деплой завершён ==="
-echo "Сайт доступен: https://$DOMAIN"
+echo "=== Статус сервисов ==="
+systemctl is-active nginx && echo "✓ Nginx активен" || echo "⚠️  Nginx не активен"
+docker inspect --format='{{.State.Running}}' vps-frontend-1 2>/dev/null | grep -q true && echo "✓ Frontend контейнер запущен" || echo "⚠️  Frontend контейнер не запущен"
+echo ""
+echo "=========================================="
+echo "  ✓ Деплой завершён!"
+echo "=========================================="
+echo ""
+echo "Сайт: https://$DOMAIN"
 echo "Логи: docker compose logs -f"
+echo "Перезапуск: docker compose restart"
+echo "Остановка: docker compose down"
+echo ""
