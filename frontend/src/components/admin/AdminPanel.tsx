@@ -125,9 +125,10 @@ export function AdminPanel() {
       });
       
       if (response.ok) {
-        alert('Пароль изменён!');
+        alert('Пароль изменён! Теперь войдите с новым паролем');
         setPasswordForm({ old: '', new: '' });
         setShowPasswordChange(false);
+        handleLogout(); // Выход после смены пароля
       } else {
         const error = await response.json();
         alert(error.detail || 'Ошибка');
