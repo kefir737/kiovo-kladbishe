@@ -101,11 +101,14 @@ def get_all_content(db: Session = Depends(get_db)):
             except:
                 pass
 
-    # Получаем изображения галереи
+    # Получаем изображения галереи - как чистый список dict
     images = db.query(GalleryImage).filter(
         GalleryImage.is_active == True
     ).order_by(GalleryImage.order).all()
-    content["gallery_images"] = images
+    content["gallery_images"] = [
+        {"id": img.id, "filename": img.filename, "title": img.title or ""}
+        for img in images
+    ]
 
     return content
 
