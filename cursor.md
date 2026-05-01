@@ -42,3 +42,26 @@
 - Nginx on VPS proxies domains to docker services.
 - There are two compose projects on server: `kiovo` and `granite`.
 - This repo and workflow apply to `kiovo` unless explicitly stated otherwise.
+
+## Runtime/deployment specifics (kiovo)
+
+- Main runtime healthchecks currently expected:
+  - frontend: `http://127.0.0.1/health`
+  - backend: python urllib probe to `http://127.0.0.1:8000/api/content`
+- Existing server deployment path: `/opt/kladbishe/vps`.
+- Domain routing:
+  - `kladbishe-kiovo.ru` -> nginx -> `127.0.0.1:8082` (kiovo frontend container)
+- If container state is `unhealthy`, inspect:
+  - `docker inspect <container> --format='{{json .State.Health}}'`
+  - `docker logs --tail 200 <container>`
+
+## SSH/Security operational notes (server-wide)
+
+- Access model explicitly requested by owner:
+  - keep root access enabled
+  - keep password authentication enabled
+  - do NOT enforce `PermitRootLogin prohibit-password`
+- Safe hardening already applied server-wide:
+  - `ufw` enabled with allowlist `22/80/443`
+  - `fail2ban` active (`sshd` jail)
+  - SSH limits tuned (`MaxAuthTries`, `LoginGraceTime`, keepalive)
