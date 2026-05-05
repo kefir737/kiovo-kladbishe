@@ -1,7 +1,60 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import json
 import os
+
+DEFAULT_INFRASTRUCTURE_FACILITIES = [
+    {
+        "icon": "building",
+        "title": "Административное здание",
+        "description": "Администрация находится возле центрального входа",
+    },
+    {
+        "icon": "chapel",
+        "title": "Часовня-молитвенный дом",
+        "description": "Возле центрального входа, с левой стороны",
+    },
+    {
+        "icon": "water",
+        "title": "Водоразборные колонки",
+        "description": "3 точки, работают сезонно (май–октябрь)",
+    },
+    {
+        "icon": "trash",
+        "title": "Контейнерные площадки",
+        "description": "возле администрации кладбища, около сектора 11, сектора 12 и сектора 24",
+    },
+    {
+        "icon": "inventory",
+        "title": "Места для инвентаря",
+        "description": "Метелки, грабли и лопаты доступны в пункте охраны под залог документа",
+    },
+    {
+        "icon": "map",
+        "title": "Схема участков",
+        "description": "Схема секторов расположена у центрального входа",
+    },
+]
+
+DEFAULT_FAQ_ITEMS = [
+    {
+        "question": "Как найти конкретную могилу?",
+        "answer": "Сообщите в администрацию ФИО погребенного и примерный год захоронения. Сотрудники предоставят номер участка, ряда и места.",
+    },
+    {
+        "question": "Можно ли приехать на машине прямо к участку?",
+        "answer": "Транспорт на территорию не допускается, так как есть только дорожки для пешеходов.",
+    },
+    {
+        "question": "Работает ли вода зимой?",
+        "answer": "Водоснабжение отключается с ноября по апрель во избежание разморозки труб.",
+    },
+    {
+        "question": "Куда обращаться по вопросам вандализма или аварийных деревьев?",
+        "answer": "Поста охраны нет, вместо него — администрация у центрального входа.",
+    },
+]
 
 # MySQL connection string
 DATABASE_URL = os.getenv(
@@ -93,7 +146,11 @@ def init_db():
             ContentBlock(
                 key="infrastructure",
                 title="Планировка и инфраструктура",
-                content="<p>У каждого входа размещены стенды со схемой расположения рядов и мест.</p>"
+                content="<p>У каждого входа размещены стенды со схемой расположения рядов и мест.</p>",
+                extra_data=json.dumps(
+                    {"facilities": DEFAULT_INFRASTRUCTURE_FACILITIES},
+                    ensure_ascii=False,
+                ),
             ),
             ContentBlock(
                 key="hours",
@@ -111,7 +168,7 @@ def init_db():
                 key="faq",
                 title="Часто задаваемые вопросы",
                 content="",
-                extra_data='{"items": [{"question": "Как найти конкретную могилу?", "answer": "Сообщите в администрацию ФИО погребённого и примерный год захоронения. Сотрудники предоставят номер участка, ряда и места."}, {"question": "Можно ли приехать на машине прямо к участку?", "answer": "Внутренние проезды предназначены только для спецтранспорта и маломобильных граждан по предварительной заявке."}, {"question": "Работает ли вода зимой?", "answer": "Водоснабжение отключается с ноября по апрель во избежание разморозки труб."}]}'
+                extra_data=json.dumps({"items": DEFAULT_FAQ_ITEMS}, ensure_ascii=False),
             ),
         ]
         
@@ -127,7 +184,32 @@ def init_db():
                     existing.content = item.content
                 if not existing.extra_data and item.extra_data:
                     existing.extra_data = item.extra_data
-        
+
+        # Карточки инфраструктуры (facilities) для уже существующих БД
+        infra = db.query(ContentBlock).filter(ContentBlock.key == "infrastructure").first()
+        if infra:
+            parsed = {}
+            if infra.extra_data:
+                try:
+                    parsed = json.loads(infra.extra_data)
+                except json.JSONDecodeError:
+                    parsed = {}
+            if not parsed.get("facilities"):
+                parsed["facilities"] = list(DEFAULT_INFRASTRUCTURE_FACILITIES)
+                infra.extra_data = json.dumps(parsed, ensure_ascii=False)
+
+        faq = db.query(ContentBlock).filter(ContentBlock.key == "faq").first()
+        if faq:
+            parsed = {}
+            if faq.extra_data:
+                try:
+                    parsed = json.loads(faq.extra_data)
+                except json.JSONDecodeError:
+                    parsed = {}
+            if not parsed.get("items"):
+                parsed["items"] = list(DEFAULT_FAQ_ITEMS)
+                faq.extra_data = json.dumps(parsed, ensure_ascii=False)
+
         db.commit()
     finally:
         db.close()

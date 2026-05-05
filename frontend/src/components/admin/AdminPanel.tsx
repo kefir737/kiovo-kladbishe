@@ -1,5 +1,17 @@
 import { useState, useEffect } from 'react';
 
+interface FaqItem {
+  question: string;
+  answer: string;
+}
+
+interface FacilityItem {
+  icon: string;
+  title: string;
+  description: string;
+  svg_filename?: string;
+}
+
 interface ContentData {
   [key: string]: string | Array<{ id: number; filename: string; title: string }>;
   general_info_title: string;
@@ -11,6 +23,7 @@ interface ContentData {
   location_transport: string;
   infrastructure_title: string;
   infrastructure_content: string;
+  infrastructure_facilities: string;
   hours_title: string;
   hours_summer: string;
   hours_winter: string;
@@ -32,6 +45,34 @@ interface ContentData {
 }
 
 export function AdminPanel() {
+  const defaultFaqItems: FaqItem[] = [
+    {
+      question: 'Как найти конкретную могилу?',
+      answer: 'Сообщите в администрацию ФИО погребенного и примерный год захоронения. Сотрудники предоставят номер участка, ряда и места.',
+    },
+    {
+      question: 'Можно ли приехать на машине прямо к участку?',
+      answer: 'Транспорт на территорию не допускается, так как есть только дорожки для пешеходов.',
+    },
+    {
+      question: 'Работает ли вода зимой?',
+      answer: 'Водоснабжение отключается с ноября по апрель во избежание разморозки труб.',
+    },
+    {
+      question: 'Куда обращаться по вопросам вандализма или аварийных деревьев?',
+      answer: 'Поста охраны нет, вместо него — администрация у центрального входа.',
+    },
+  ];
+
+  const defaultFacilities: FacilityItem[] = [
+    { icon: 'building', title: 'Административное здание', description: 'Администрация находится возле центрального входа' },
+    { icon: 'chapel', title: 'Часовня-молитвенный дом', description: 'Возле центрального входа, с левой стороны' },
+    { icon: 'water', title: 'Водоразборные колонки', description: '3 точки, работают сезонно (май–октябрь)' },
+    { icon: 'trash', title: 'Контейнерные площадки', description: 'возле администрации кладбища, около сектора 11, сектора 12 и сектора 24' },
+    { icon: 'inventory', title: 'Места для инвентаря', description: 'Метелки, грабли и лопаты доступны в пункте охраны под залог документа' },
+    { icon: 'map', title: 'Схема участков', description: 'Схема секторов расположена у центрального входа' },
+  ];
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const [content, setContent] = useState<ContentData>({
@@ -44,6 +85,7 @@ export function AdminPanel() {
     location_transport: '',
     infrastructure_title: '',
     infrastructure_content: '',
+    infrastructure_facilities: '',
     hours_title: '',
     hours_summer: '',
     hours_winter: '',
@@ -63,6 +105,9 @@ export function AdminPanel() {
     seo_keywords: '',
     favicon: '',
   });
+  const [faqEditor, setFaqEditor] = useState<FaqItem[]>(defaultFaqItems);
+  const [facilitiesEditor, setFacilitiesEditor] = useState<FacilityItem[]>(defaultFacilities);
+  const [svgError, setSvgError] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -146,6 +191,85 @@ export function AdminPanel() {
     }
   }
 
+  function parseJsonArray<T>(raw: unknown, fallback: T[]): T[] {
+    if (!raw) return fallback;
+    if (Array.isArray(raw)) return raw as T[];
+    if (typeof raw !== 'string') return fallback;
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as T[]) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function updateFaqItem(index: number, key: keyof FaqItem, value: string) {
+    setFaqEditor(prev => prev.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
+  }
+
+  function updateFacilityItem(index: number, key: keyof FacilityItem, value: string) {
+    setFacilitiesEditor(prev => prev.map((item, i) => (i === index ? { ...item, [key]: value } : item)));
+  }
+
+  function addFaqItem() {
+    setFaqEditor(prev => [...prev, { question: '', answer: '' }]);
+  }
+
+  function removeFaqItem(index: number) {
+    setFaqEditor(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function addFacilityItem() {
+    setFacilitiesEditor(prev => [...prev, { icon: 'building', title: '', description: '' }]);
+  }
+
+  function removeFacilityItem(index: number) {
+    setFacilitiesEditor(prev => prev.filter((_, i) => i !== index));
+  }
+
+  async function uploadInfrastructureSvg(index: number, file?: File) {
+    if (!file) return;
+    setSvgError('');
+
+    const svgText = await file.text();
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+    const svgTag = svgDoc.querySelector('svg');
+    if (!svgTag) {
+      setSvgError('Файл не содержит корректный тег <svg>.');
+      return;
+    }
+
+    const viewBox = svgTag.getAttribute('viewBox')?.trim() ?? '';
+    const width = svgTag.getAttribute('width')?.replace('px', '').trim() ?? '';
+    const height = svgTag.getAttribute('height')?.replace('px', '').trim() ?? '';
+    const sizeOk = viewBox === '0 0 64 64' || (width === '64' && height === '64');
+    if (!sizeOk) {
+      setSvgError('SVG должен иметь viewBox "0 0 64 64" или width/height = 64px.');
+      return;
+    }
+
+    const token = localStorage.getItem('admin_token');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE}/api/upload-infrastructure-svg`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      setSvgError('Не удалось загрузить SVG на сервер.');
+      return;
+    }
+
+    const data = await response.json();
+    setFacilitiesEditor(prev =>
+      prev.map((item, i) => (i === index ? { ...item, svg_filename: String(data.filename || '') } : item)),
+    );
+  }
+
   async function loadContent() {
     try {
       const response = await fetch(`${API_BASE}/api/content`);
@@ -162,6 +286,7 @@ export function AdminPanel() {
         location_transport: String(data.location_transport || ''),
         infrastructure_title: String(data.infrastructure_title || ''),
         infrastructure_content: String(data.infrastructure_content || ''),
+        infrastructure_facilities: String(data.infrastructure_facilities || ''),
         hours_title: String(data.hours_title || ''),
         hours_summer: String(data.hours_summer || ''),
         hours_winter: String(data.hours_winter || ''),
@@ -189,6 +314,8 @@ export function AdminPanel() {
       });
 
       setContent(safeData);
+      setFaqEditor(parseJsonArray<FaqItem>(data.faq_items, defaultFaqItems));
+      setFacilitiesEditor(parseJsonArray<FacilityItem>(data.infrastructure_facilities, defaultFacilities));
     } catch (error) {
       console.error('Error loading content:', error);
     } finally {
@@ -210,9 +337,16 @@ export function AdminPanel() {
       
       if (typeof titleValue === 'string' && titleValue) formData.append('title', titleValue);
       if (typeof contentValue === 'string' && contentValue) formData.append('content', contentValue);
+
+      if (section === 'faq') {
+        formData.append('items', JSON.stringify(faqEditor, null, 2));
+      }
+      if (section === 'infrastructure') {
+        formData.append('facilities', JSON.stringify(facilitiesEditor, null, 2));
+      }
       
       // Extra fields - base list
-      let extraFields = ['address', 'coords', 'car', 'transport', 'summer', 'winter', 'rules', 'org', 'phone', 'items'];
+      let extraFields = ['address', 'coords', 'car', 'transport', 'summer', 'winter', 'rules', 'org', 'phone'];
       
       // Add reception hours when saving contacts
       if (section === 'contacts') {
@@ -593,6 +727,68 @@ export function AdminPanel() {
                     rows={4}
                   />
                 </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">Карточки инфраструктуры</label>
+                    <button
+                      type="button"
+                      onClick={addFacilityItem}
+                      className="bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300"
+                    >
+                      Добавить карточку
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500">SVG: рекомендованный размер — viewBox 0 0 64 64 (или width/height 64px)</p>
+                  {facilitiesEditor.map((item, index) => (
+                    <div key={index} className="border rounded p-4 space-y-3 bg-gray-50">
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <select
+                          value={item.icon}
+                          onChange={(e) => updateFacilityItem(index, 'icon', e.target.value)}
+                          className="border rounded px-3 py-2"
+                        >
+                          <option value="building">building</option>
+                          <option value="chapel">chapel</option>
+                          <option value="water">water</option>
+                          <option value="trash">trash</option>
+                          <option value="inventory">inventory</option>
+                          <option value="map">map</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={item.title}
+                          onChange={(e) => updateFacilityItem(index, 'title', e.target.value)}
+                          placeholder="Заголовок"
+                          className="border rounded px-3 py-2"
+                        />
+                      </div>
+                      <textarea
+                        value={item.description}
+                        onChange={(e) => updateFacilityItem(index, 'description', e.target.value)}
+                        placeholder="Описание"
+                        className="w-full border rounded px-3 py-2"
+                        rows={3}
+                      />
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept=".svg"
+                          onChange={(e) => uploadInfrastructureSvg(index, e.target.files?.[0])}
+                          className="border rounded px-3 py-2"
+                        />
+                        {item.svg_filename && <span className="text-sm text-gray-600">{item.svg_filename}</span>}
+                        <button
+                          type="button"
+                          onClick={() => removeFacilityItem(index)}
+                          className="ml-auto bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {svgError && <p className="text-sm text-red-600">{svgError}</p>}
+                </div>
                 <button
                   onClick={() => saveContent('infrastructure')}
                   disabled={saving}
@@ -754,13 +950,45 @@ export function AdminPanel() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Вопросы (JSON)</label>
-                  <textarea
-                    value={content.faq_items || ''}
-                    onChange={(e) => setContent({ ...content, faq_items: e.target.value })}
-                    className="w-full border rounded px-3 py-2 font-mono text-sm"
-                    rows={10}
-                  />
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Вопросы и ответы</label>
+                    <button
+                      type="button"
+                      onClick={addFaqItem}
+                      className="bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300"
+                    >
+                      Добавить вопрос
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {faqEditor.map((item, index) => (
+                      <div key={index} className="border rounded p-4 bg-gray-50 space-y-2">
+                        <input
+                          type="text"
+                          value={item.question}
+                          onChange={(e) => updateFaqItem(index, 'question', e.target.value)}
+                          placeholder="Вопрос"
+                          className="w-full border rounded px-3 py-2"
+                        />
+                        <textarea
+                          value={item.answer}
+                          onChange={(e) => updateFaqItem(index, 'answer', e.target.value)}
+                          placeholder="Ответ"
+                          className="w-full border rounded px-3 py-2"
+                          rows={3}
+                        />
+                        <div className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => removeFaqItem(index)}
+                            className="bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200"
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <button
                   onClick={() => saveContent('faq')}

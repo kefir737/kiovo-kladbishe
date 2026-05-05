@@ -99,9 +99,16 @@ def get_all_content(db: Session = Depends(get_db)):
             try:
                 extra = json.loads(block.extra_data)
                 for k, v in extra.items():
-                    # faq_items оставляем как JSON строку для схемы
-                    if k == 'items':
-                        content[f"{block.key}_{k}"] = block.extra_data
+                    if k in ('items', 'facilities'):
+                        normalized = v
+                        if isinstance(v, str):
+                            try:
+                                maybe_json = json.loads(v)
+                                if isinstance(maybe_json, list):
+                                    normalized = maybe_json
+                            except json.JSONDecodeError:
+                                normalized = v
+                        content[f"{block.key}_{k}"] = json.dumps(normalized, ensure_ascii=False)
                     else:
                         content[f"{block.key}_{k}"] = v
             except:
@@ -208,6 +215,7 @@ def update_content_block(
     saturday: Optional[str] = Form(None),
     sunday: Optional[str] = Form(None),
     items: Optional[str] = Form(None),
+    facilities: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """Обновить блок контента"""
@@ -221,14 +229,22 @@ def update_content_block(
     if content is not None:
         block.content = content
 
-    # Собираем extra_data
+    # Собираем extra_data и не затираем существующие поля
     extra = {}
+    if block.extra_data:
+        try:
+            parsed_extra = json.loads(block.extra_data)
+            if isinstance(parsed_extra, dict):
+                extra = parsed_extra
+        except json.JSONDecodeError:
+            extra = {}
+
     for field_name, value in [
         ("address", address), ("coords", coords), ("car", car), ("transport", transport),
         ("summer", summer), ("winter", winter), ("rules", rules),
         ("org", org), ("phone", phone),
         ("weekday", weekday), ("saturday", saturday), ("sunday", sunday),
-        ("items", items)
+        ("items", items), ("facilities", facilities)
     ]:
         if value is not None and value.strip():
             extra[field_name] = value
@@ -369,6 +385,29 @@ def upload_favicon(
         setting.value = f"/uploads/{filename}"
     db.commit()
     
+    return {"filename": filename, "url": f"/uploads/{filename}"}
+
+
+@app.post("/api/upload-infrastructure-svg")
+def upload_infrastructure_svg(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """Загрузить SVG иконку для инфраструктуры"""
+    del db  # endpoint does not persist metadata server-side
+
+    if not file.filename.lower().endswith(".svg"):
+        raise HTTPException(status_code=400, detail="Только SVG файлы разрешены")
+
+    safe_stem = "".join(ch for ch in Path(file.filename).stem if ch.isalnum() or ch in ("-", "_")).strip("_")
+    if not safe_stem:
+        safe_stem = "infrastructure-icon"
+    filename = f"{safe_stem}.svg"
+    file_path = UPLOAD_DIR / filename
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
     return {"filename": filename, "url": f"/uploads/{filename}"}
 
 
