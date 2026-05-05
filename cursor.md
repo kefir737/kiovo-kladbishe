@@ -22,10 +22,12 @@
 ## Standard execution order
 
 1. Edit in local repo.
-2. Run local validation/tests relevant to change.
+2. Run local frontend validation only (no local Docker required):
+   - frontend build (`npm run build`)
+   - optional preview/dev check on localhost (`npm run dev`)
 3. Commit on `main` and push to `origin/main`.
 4. SSH to server repo (`/opt/kladbishe/vps`) and run `git pull`.
-5. Run `docker compose up -d` if local checks passed.
+5. Run `docker compose up -d --build` on VPS.
 6. Run post-deploy checks.
 
 ## Post-deploy checks (mandatory)
@@ -36,6 +38,16 @@
   - `/health`
   - `/api/content`
 - On failure: inspect `docker logs` and `docker inspect` health logs.
+
+### Post-deploy command checklist (copy/paste)
+
+```bash
+docker ps
+docker inspect kiovo-frontend-1 --format='{{json .State.Health}}'
+docker inspect kiovo-backend-1 --format='{{json .State.Health}}'
+curl -fsS http://127.0.0.1/health
+curl -fsS http://127.0.0.1:8000/api/content
+```
 
 ## Current infrastructure notes
 
