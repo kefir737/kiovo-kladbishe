@@ -36,7 +36,7 @@ export function Gallery() {
             >
               <img
                 src={`/uploads/${image.filename}`}
-                alt={image.title || 'Фото'}
+                alt={image.alt || image.title || 'Фото'}
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                 loading="lazy"
               />

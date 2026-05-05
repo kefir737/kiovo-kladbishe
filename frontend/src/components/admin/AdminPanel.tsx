@@ -12,8 +12,16 @@ interface FacilityItem {
   svg_filename?: string;
 }
 
+interface GalleryItem {
+  id: number;
+  filename: string;
+  title: string;
+  alt: string;
+  order: number;
+}
+
 interface ContentData {
-  [key: string]: string | Array<{ id: number; filename: string; title: string }>;
+  [key: string]: string | GalleryItem[];
   general_info_title: string;
   general_info_content: string;
   location_title: string;
@@ -37,7 +45,7 @@ interface ContentData {
   contacts_sunday: string;
   faq_title: string;
   faq_items: string;
-  gallery_images: Array<{ id: number; filename: string; title: string }>;
+  gallery_images: GalleryItem[];
   seo_title: string;
   seo_description: string;
   seo_keywords: string;
@@ -115,6 +123,7 @@ export function AdminPanel() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ old: '', new: '' });
   const [seoForm, setSeoForm] = useState({ seo_title: '', seo_description: '', seo_keywords: '' });
+  const [draggedImageId, setDraggedImageId] = useState<number | null>(null);
 
   const API_BASE = '';
 
@@ -300,7 +309,15 @@ export function AdminPanel() {
         contacts_sunday: String(data.sunday || ''),
         faq_title: String(data.faq_title || ''),
         faq_items: String(data.faq_items || ''),
-        gallery_images: Array.isArray(data.gallery_images) ? data.gallery_images : [],
+        gallery_images: Array.isArray(data.gallery_images)
+          ? data.gallery_images.map((img: any, index: number) => ({
+              id: Number(img.id),
+              filename: String(img.filename || ''),
+              title: String(img.title || ''),
+              alt: String(img.alt || ''),
+              order: typeof img.order === 'number' ? img.order : index,
+            }))
+          : [],
         seo_title: String(data.seo_title || ''),
         seo_description: String(data.seo_description || ''),
         seo_keywords: String(data.seo_keywords || ''),
@@ -385,12 +402,14 @@ export function AdminPanel() {
     const token = localStorage.getItem('admin_token');
     const fileInput = document.getElementById('gallery_file') as HTMLInputElement;
     const titleInput = document.getElementById('gallery_title') as HTMLInputElement;
+    const altInput = document.getElementById('gallery_alt') as HTMLInputElement;
     
     if (!fileInput.files?.[0]) return;
 
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     formData.append('title', titleInput.value);
+    formData.append('alt', altInput.value);
 
     try {
       const response = await fetch(`${API_BASE}/api/gallery/upload`, {
@@ -401,12 +420,67 @@ export function AdminPanel() {
       if (response.ok) {
         fileInput.value = '';
         titleInput.value = '';
+        altInput.value = '';
         loadContent();
         alert('Фото загружено!');
       }
     } catch (error) {
       alert('Ошибка загрузки');
     }
+  }
+
+  async function updateGalleryImage(id: number, payload: Partial<GalleryItem>) {
+    const token = localStorage.getItem('admin_token');
+    const formData = new FormData();
+    if (typeof payload.title === 'string') formData.append('title', payload.title);
+    if (typeof payload.alt === 'string') formData.append('alt', payload.alt);
+    if (typeof payload.order === 'number') formData.append('order', String(payload.order));
+
+    const response = await fetch(`${API_BASE}/api/gallery/${id}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Ошибка сохранения фото');
+  }
+
+  async function persistGalleryOrder(images: GalleryItem[]) {
+    try {
+      const ordered = images.map((img, index) => ({ ...img, order: index }));
+      setContent(prev => ({ ...prev, gallery_images: ordered }));
+      await Promise.all(ordered.map((img) => updateGalleryImage(img.id, { order: img.order })));
+    } catch (error) {
+      console.error('Error updating gallery order:', error);
+      alert('Не удалось сохранить новый порядок фото');
+      loadContent();
+    }
+  }
+
+  async function saveGalleryImageMeta(img: GalleryItem) {
+    try {
+      await updateGalleryImage(img.id, { title: img.title, alt: img.alt });
+      alert('Подписи сохранены');
+    } catch (error) {
+      console.error('Error updating image meta:', error);
+      alert('Ошибка сохранения подписи/alt');
+    }
+  }
+
+  function onGalleryDragStart(imageId: number) {
+    setDraggedImageId(imageId);
+  }
+
+  async function onGalleryDrop(targetImageId: number) {
+    if (draggedImageId === null || draggedImageId === targetImageId) return;
+    const images = Array.isArray(content.gallery_images) ? [...content.gallery_images] : [];
+    const fromIndex = images.findIndex((img) => img.id === draggedImageId);
+    const toIndex = images.findIndex((img) => img.id === targetImageId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const [moved] = images.splice(fromIndex, 1);
+    images.splice(toIndex, 0, moved);
+    setDraggedImageId(null);
+    await persistGalleryOrder(images);
   }
 
   async function deleteImage(id: number) {
@@ -1006,9 +1080,10 @@ export function AdminPanel() {
             <div>
               <h2 className="text-xl font-semibold mb-4">Галерея</h2>
               <form onSubmit={uploadImage} className="mb-6 p-4 bg-gray-50 rounded">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <input type="file" id="gallery_file" accept="image/*" className="border rounded px-3 py-2" required />
                   <input type="text" id="gallery_title" placeholder="Описание" className="border rounded px-3 py-2" />
+                  <input type="text" id="gallery_alt" placeholder="Alt текст" className="border rounded px-3 py-2" />
                   <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
                     Загрузить
                   </button>
@@ -1016,15 +1091,58 @@ export function AdminPanel() {
               </form>
               <div className="grid grid-cols-4 gap-4">
                 {Array.isArray(content.gallery_images) && content.gallery_images.map((img) => (
-                  <div key={img.id} className="relative group">
-                    <img src={`/uploads/${img.filename}`} alt={img.title} className="w-full h-48 object-cover rounded" />
-                    <p className="text-sm mt-1">{img.title || 'Без названия'}</p>
-                    <button
-                      onClick={() => deleteImage(img.id)}
-                      className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-sm opacity-0 group-hover:opacity-100"
-                    >
-                      Удалить
-                    </button>
+                  <div
+                    key={img.id}
+                    draggable
+                    onDragStart={() => onGalleryDragStart(img.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => onGalleryDrop(img.id)}
+                    className="relative group bg-gray-50 border rounded p-2"
+                  >
+                    <img src={`/uploads/${img.filename}`} alt={img.alt || img.title || 'Фото'} className="w-full h-48 object-cover rounded" />
+                    <p className="text-xs text-gray-500 mt-1">Перетащите для изменения порядка</p>
+                    <input
+                      type="text"
+                      value={img.title || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setContent(prev => ({
+                          ...prev,
+                          gallery_images: prev.gallery_images.map((x) => (x.id === img.id ? { ...x, title: value } : x)),
+                        }));
+                      }}
+                      placeholder="Название"
+                      className="w-full border rounded px-2 py-1 mt-2 text-sm"
+                    />
+                    <input
+                      type="text"
+                      value={img.alt || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setContent(prev => ({
+                          ...prev,
+                          gallery_images: prev.gallery_images.map((x) => (x.id === img.id ? { ...x, alt: value } : x)),
+                        }));
+                      }}
+                      placeholder="Alt текст"
+                      className="w-full border rounded px-2 py-1 mt-2 text-sm"
+                    />
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => saveGalleryImageMeta(img)}
+                        className="bg-blue-600 text-white px-2 py-1 rounded text-sm"
+                      >
+                        Сохранить
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteImage(img.id)}
+                        className="bg-red-600 text-white px-2 py-1 rounded text-sm"
+                      >
+                        Удалить
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {!Array.isArray(content.gallery_images) && <p className="text-gray-500">Загрузка...</p>}

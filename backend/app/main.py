@@ -119,7 +119,13 @@ def get_all_content(db: Session = Depends(get_db)):
         GalleryImage.is_active == True
     ).order_by(GalleryImage.order).all()
     content["gallery_images"] = [
-        {"id": img.id, "filename": img.filename, "title": img.title or ""}
+        {
+            "id": img.id,
+            "filename": img.filename,
+            "title": img.title or "",
+            "alt": img.alt or "",
+            "order": img.order,
+        }
         for img in images
     ]
 
@@ -263,6 +269,7 @@ def update_content_block(
 def upload_gallery_image(
     file: UploadFile = File(...),
     title: str = Form(""),
+    alt: str = Form(""),
     order: int = Form(0),
     db: Session = Depends(get_db)
 ):
@@ -307,7 +314,7 @@ def upload_gallery_image(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    image = GalleryImage(title=title, filename=filename, order=order)
+    image = GalleryImage(title=title, alt=alt, filename=filename, order=order)
     db.add(image)
     db.commit()
     db.refresh(image)
@@ -342,6 +349,7 @@ def delete_gallery_image(image_id: int, db: Session = Depends(get_db)):
 def update_gallery_image(
     image_id: int,
     title: Optional[str] = Form(None),
+    alt: Optional[str] = Form(None),
     order: Optional[int] = Form(None),
     is_active: Optional[bool] = Form(None),
     db: Session = Depends(get_db)
@@ -353,6 +361,8 @@ def update_gallery_image(
     
     if title is not None:
         image.title = title
+    if alt is not None:
+        image.alt = alt
     if order is not None:
         image.order = order
     if is_active is not None:

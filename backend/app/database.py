@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import json
@@ -23,7 +23,7 @@ DEFAULT_INFRASTRUCTURE_FACILITIES = [
     {
         "icon": "trash",
         "title": "Контейнерные площадки",
-        "description": "возле администрации кладбища, около сектора 11, сектора 12 и сектора 24",
+        "description": "Возле администрации кладбища, около сектора 11, сектора 12 и сектора 24",
     },
     {
         "icon": "inventory",
@@ -52,7 +52,7 @@ DEFAULT_FAQ_ITEMS = [
     },
     {
         "question": "Куда обращаться по вопросам вандализма или аварийных деревьев?",
-        "answer": "Поста охраны нет, вместо него — администрация у центрального входа.",
+        "answer": "В администрацию, которая расположена у центрального входа.",
     },
 ]
 
@@ -94,6 +94,7 @@ class GalleryImage(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200))
+    alt = Column(String(255), default="")
     filename = Column(String(200), nullable=False)
     order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
@@ -129,6 +130,13 @@ def init_db():
             db.add(admin)
             print("Created default admin user: admin / admin123")
         
+        # Lightweight migration for existing MySQL table
+        try:
+            db.execute(text("ALTER TABLE gallery_images ADD COLUMN alt VARCHAR(255) DEFAULT ''"))
+            db.commit()
+        except Exception:
+            db.rollback()
+
         initial_content = [
             ContentBlock(
                 key="general_info",
